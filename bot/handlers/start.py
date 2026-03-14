@@ -1,5 +1,5 @@
 import aiosqlite
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
@@ -11,6 +11,7 @@ from bot.translate import translate_to
 
 class PostAdStates(StatesGroup):
     waiting_text = State()
+
 
 router = Router()
 
@@ -62,6 +63,22 @@ NO_ADS = {
     "other": "No ads yet.",
 }
 
+BACK_TEXTS = {
+    "sk": "← Späť",
+    "uz": "← Orqaga",
+    "tl": "← Bumalik",
+    "uk": "← Назад",
+    "other": "← Back",
+}
+
+CANCEL_TEXTS = {
+    "sk": "Zrušiť",
+    "uz": "Bekor qilish",
+    "tl": "Kanselahin",
+    "uk": "Скасувати",
+    "other": "Cancel",
+}
+
 CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову:"
 
 
@@ -83,6 +100,62 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     )
 
 
+def back_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=BACK_TEXTS[lang], callback_data="back_to_menu")]
+        ]
+    )
+
+
+def cancel_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=CANCEL_TEXTS[lang], callback_data="back_to_menu")]
+        ]
+    )
+
+
+async def save_user_message(user_id: int, chat_id: int, message_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO users (user_id, language, chat_id, message_id) VALUES (?, 'other', ?, ?)
+               ON CONFLICT(user_id) DO UPDATE SET chat_id = excluded.chat_id, message_id = excluded.message_id""",
+            (user_id, chat_id, message_id),
+        )
+        await db.commit()
+
+
+async def get_user_message_ids(user_id: int) -> tuple[int | None, int | None]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT chat_id, message_id FROM users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            if row and row["chat_id"] is not None and row["message_id"] is not None:
+                return int(row["chat_id"]), int(row["message_id"])
+            return None, None
+
+
+async def edit_user_message(
+    bot: Bot, user_id: int, text: str, reply_markup: InlineKeyboardMarkup | None = None
+) -> bool:
+    chat_id, message_id = await get_user_message_ids(user_id)
+    if chat_id is None or message_id is None:
+        return False
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup=reply_markup,
+        )
+        return True
+    except Exception:
+        return False
+
+
 async def get_user_language(user_id: int) -> str:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -96,8 +169,8 @@ async def get_user_language(user_id: int) -> str:
 async def set_user_language(user_id: int, lang: str):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO users (user_id, language) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET language = ?",
-            (user_id, lang, lang),
+            "INSERT INTO users (user_id, language) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET language = excluded.language",
+            (user_id, lang),
         )
         await db.commit()
 
@@ -123,7 +196,24 @@ async def get_last_ads(limit: int = 10):
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    await message.answer(CHOOSE_LANG_TEXT, reply_markup=lang_keyboard())
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    bot = message.bot
+    chat_id_stored, message_id_stored = await get_user_message_ids(user_id)
+    if chat_id_stored is not None and message_id_stored is not None:
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id_stored,
+                message_id=message_id_stored,
+                text=CHOOSE_LANG_TEXT,
+                reply_markup=lang_keyboard(),
+            )
+            await save_user_message(user_id, chat_id_stored, message_id_stored)
+            return
+        except Exception:
+            pass
+    sent = await message.answer(CHOOSE_LANG_TEXT, reply_markup=lang_keyboard())
+    await save_user_message(user_id, chat_id, sent.message_id)
 
 
 @router.callback_query(F.data.startswith("lang_"))
@@ -137,6 +227,15 @@ async def on_language(callback: CallbackQuery):
     await callback.answer()
 
 
+@router.callback_query(F.data == "back_to_menu")
+async def on_back_to_menu(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.answer()
+    lang = await get_user_language(callback.from_user.id)
+    text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
+    await callback.message.edit_text(text, reply_markup=main_menu_keyboard(lang))
+
+
 @router.callback_query(F.data == "post_ad")
 async def on_post_ad(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
@@ -144,18 +243,25 @@ async def on_post_ad(callback: CallbackQuery, state: FSMContext):
     await state.set_state(PostAdStates.waiting_text)
     await state.update_data(lang=lang)
     prompt = ENTER_AD_TEXT.get(lang, ENTER_AD_TEXT["other"])
-    await callback.message.answer(prompt)
+    await callback.message.edit_text(prompt, reply_markup=cancel_keyboard(lang))
 
 
 @router.message(PostAdStates.waiting_text, F.text)
 async def on_ad_text(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    bot = message.bot
     data = await state.get_data()
     lang = data.get("lang", "other")
-    author_name = message.from_user.full_name or message.from_user.username or str(message.from_user.id)
-    await save_ad(message.from_user.id, lang, message.text, author_name)
+    author_name = message.from_user.full_name or message.from_user.username or str(user_id)
+    await save_ad(user_id, lang, message.text, author_name)
     await state.clear()
     confirm = AD_POSTED.get(lang, AD_POSTED["other"])
-    await message.answer(confirm)
+    menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
+    text = f"{confirm}\n\n{menu_text}"
+    ok = await edit_user_message(bot, user_id, text, main_menu_keyboard(lang))
+    if not ok:
+        sent = await message.answer(text, reply_markup=main_menu_keyboard(lang))
+        await save_user_message(user_id, message.chat.id, sent.message_id)
 
 
 @router.callback_query(F.data == "view_ads")
@@ -165,7 +271,7 @@ async def on_view_ads(callback: CallbackQuery):
     ads = await get_last_ads(10)
     if not ads:
         msg = NO_ADS.get(lang, NO_ADS["other"])
-        await callback.message.answer(msg)
+        await callback.message.edit_text(msg, reply_markup=back_keyboard(lang))
         return
     target_language = LANGUAGES.get(lang, "Other")
     lines = []
@@ -179,4 +285,4 @@ async def on_view_ads(callback: CallbackQuery):
     text = "\n———\n".join(lines)
     if len(text) > 4000:
         text = text[:3997] + "..."
-    await callback.message.answer(text)
+    await callback.message.edit_text(text, reply_markup=back_keyboard(lang))

@@ -14,7 +14,9 @@ async def init_db():
         await db.execute(
             """CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
-                language TEXT NOT NULL DEFAULT 'other'
+                language TEXT NOT NULL DEFAULT 'other',
+                chat_id INTEGER,
+                message_id INTEGER
             )"""
         )
         await db.execute(
@@ -29,6 +31,12 @@ async def init_db():
             )"""
         )
         await db.commit()
+        for col, typ in [("chat_id", "INTEGER"), ("message_id", "INTEGER")]:
+            try:
+                await db.execute(f"ALTER TABLE users ADD COLUMN {col} {typ}")
+                await db.commit()
+            except aiosqlite.OperationalError:
+                pass
         for col, typ in [("language", "TEXT"), ("author_name", "TEXT")]:
             try:
                 await db.execute(f"ALTER TABLE ads ADD COLUMN {col} {typ}")
