@@ -179,13 +179,16 @@ OPEN_CHAT_BTN_TEXTS = {
     "other": "Open chat",
 }
 
-CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову:"
+CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову / Alegeți limba / Válasszon nyelvet:"
 
 LANG_BUTTON_TEXTS = {
     "sk": "🇸🇰 Slovak",
     "uz": "🇺🇿 Uzbek",
     "tl": "🇵🇭 Tagalog",
     "uk": "🇺🇦 Ukrainian",
+    "ro": "🇷🇴 Romanian",
+    "en": "🇬🇧 English",
+    "hu": "🇭🇺 Hungarian",
     "other": "🌐 Other",
 }
 

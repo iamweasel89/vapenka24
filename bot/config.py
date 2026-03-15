@@ -26,5 +26,8 @@ LANGUAGES = {
     "uz": "Uzbek",
     "tl": "Tagalog",
     "uk": "Ukrainian",
+    "ro": "Romanian",
+    "en": "English",
+    "hu": "Hungarian",
     "other": "Other",
 }
