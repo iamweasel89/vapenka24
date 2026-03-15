@@ -1,0 +1,10 @@
+2026-03-15 01:08:50 | INFO | User 7509358328 started bot
+2026-03-15 01:08:51 | INFO | User 7509358328 (Slovak) chose language
+2026-03-15 01:09:12 | INFO | User 7509358328 (Slovak) posted ad: Привет! Как дела?
+2026-03-15 01:09:16 | INFO | User 7509358328 (Slovak) viewed ads
+2026-03-15 01:09:25 | INFO | User 5121687297 started bot
+2026-03-15 01:09:27 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 01:09:33 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 01:09:37 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 01:09:37 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 01:09:58 | INFO | Relay message forwarded: from=5121687297 to=7509358328, original=Отлично. А у тебя как дела?, translated=Výborne. A ako sa máš?
