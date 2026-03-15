@@ -1517,7 +1517,14 @@ async def on_admin_back(callback: CallbackQuery):
         await callback.answer()
         if not _require_admin(callback.from_user.id):
             return
-        await set_state(callback.bot, callback.from_user.id, USER_STATE_ADMIN_MENU, chat_id=callback.message.chat.id)
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await set_state(
+            callback.bot, callback.from_user.id, USER_STATE_ADMIN_MENU,
+            chat_id=callback.message.chat.id
+        )
     except Exception:
         log.exception("on_admin_back failed")
 
@@ -1549,7 +1556,23 @@ async def on_admin_users(callback: CallbackQuery):
         text = "\n".join(lines) if lines else "👥 No users."
         if len(text) > 4000:
             text = text[:3997] + "..."
-        await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        try:
+            await callback.message.edit_text(
+                text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+            )
+        except Exception:
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+            sent = await callback.bot.send_message(
+                callback.message.chat.id,
+                text,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+            )
+            await save_user_message(
+                callback.from_user.id, callback.message.chat.id, sent.message_id
+            )
     except Exception:
         log.exception("on_admin_users failed")
 
@@ -1679,7 +1702,23 @@ async def on_admin_delete_user(callback: CallbackQuery):
             text = "\n".join(lines) if lines else "👥 No users."
             if len(text) > 4000:
                 text = text[:3997] + "..."
-            await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+            try:
+                await callback.message.edit_text(
+                    text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+                )
+            except Exception:
+                try:
+                    await callback.message.delete()
+                except Exception:
+                    pass
+                sent = await callback.bot.send_message(
+                    callback.message.chat.id,
+                    text,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+                )
+                await save_user_message(
+                    callback.from_user.id, callback.message.chat.id, sent.message_id
+                )
             return
         if raw.startswith("admin_delete_user_"):
             try:
