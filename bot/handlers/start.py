@@ -5,18 +5,12 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 
 from bot.config import DB_PATH, LANGUAGES
 from bot.logging_config import get_logger
 from bot.translate import translate_to
 
 log = get_logger()
-
-
-class PostAdStates(StatesGroup):
-    waiting_text = State()
-
 
 router = Router()
 
@@ -131,6 +125,21 @@ CONNECTING_TEXTS = {
     "other": "Connecting you with the author...",
 }
 
+NEW_MESSAGE_FROM_TEXTS = {
+    "sk": "💬 Nová správa od",
+    "uz": "💬 Yangi xabar",
+    "tl": "💬 Bagong mensahe mula sa",
+    "uk": "💬 Нове повідомлення від",
+    "other": "💬 New message from",
+}
+OPEN_CHAT_BTN_TEXTS = {
+    "sk": "Otvorit chat",
+    "uz": "Chatni ochish",
+    "tl": "Buksan ang chat",
+    "uk": "Відкрити чат",
+    "other": "Open chat",
+}
+
 CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову:"
 
 LANG_BUTTON_TEXTS = {
@@ -243,6 +252,34 @@ async def get_user_language(user_id: int) -> str:
         ) as cur:
             row = await cur.fetchone()
             return row["language"] if row else "other"
+
+
+USER_STATE_MAIN_MENU = "MAIN_MENU"
+USER_STATE_VIEWING_ADS = "VIEWING_ADS"
+USER_STATE_POSTING_AD = "POSTING_AD"
+USER_STATE_IN_RELAY = "IN_RELAY"
+
+
+async def get_user_state(user_id: int) -> str:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT state FROM users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            if row and row["state"]:
+                return str(row["state"])
+            return USER_STATE_MAIN_MENU
+
+
+async def set_user_state_db(user_id: int, state: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO users (user_id, state) VALUES (?, ?)
+               ON CONFLICT(user_id) DO UPDATE SET state = excluded.state""",
+            (user_id, state),
+        )
+        await db.commit()
 
 
 async def set_user_language(user_id: int, lang: str):
@@ -477,6 +514,89 @@ async def _build_relay_ui_text(relay_id: int, for_user_id: int, lang: str, heade
     return header_text + "\n\n" + thread if thread else header_text + "\n\n"
 
 
+async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | None = None, reply_markup=None):
+    lang = await get_user_language(user_id)
+    if text is None:
+        text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
+    if reply_markup is None:
+        reply_markup = main_menu_keyboard(lang)
+    sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
+    await save_user_message(user_id, chat_id, sent.message_id)
+
+
+async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
+    viewer_lang = await get_user_language(user_id)
+    ads = await get_last_ads(limit=VIEW_ADS_MAX, offset=0)
+    if not ads:
+        msg = NO_ADS.get(viewer_lang, NO_ADS["other"])
+        sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(viewer_lang))
+        await save_user_message(user_id, chat_id, sent.message_id)
+        return
+    for i, ad in enumerate(ads):
+        ad_id = int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0)
+        text = await _build_single_ad_text(ad, viewer_lang, ad_id)
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+        is_last = i == len(ads) - 1
+        kb = view_ads_last_ad_keyboard(viewer_lang, ad_id) if is_last else write_to_author_keyboard(viewer_lang, ad_id)
+        sent = await bot.send_message(chat_id, text, reply_markup=kb)
+        await view_ads_add_message(user_id, chat_id, sent.message_id)
+        if is_last:
+            await save_user_message(user_id, chat_id, sent.message_id)
+
+
+async def _draw_posting_ad(bot: Bot, user_id: int, chat_id: int):
+    lang = await get_user_language(user_id)
+    prompt = ENTER_AD_TEXT.get(lang, ENTER_AD_TEXT["other"])
+    sent = await bot.send_message(chat_id, prompt, reply_markup=cancel_keyboard(lang))
+    await save_user_message(user_id, chat_id, sent.message_id)
+
+
+async def _draw_in_relay(bot: Bot, user_id: int, chat_id: int):
+    session = await relay_get_active_for_user(user_id)
+    if not session:
+        await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+        await _draw_main_menu(bot, user_id, chat_id)
+        return
+    lang = await get_user_language(user_id)
+    text = await _build_relay_ui_text(session["id"], user_id, lang)
+    if len(text) > 4000:
+        text = text[:3997] + "..."
+    sent = await bot.send_message(chat_id, text, reply_markup=relay_keyboard(lang, session["id"]))
+    await save_user_message(user_id, chat_id, sent.message_id)
+
+
+async def set_state(
+    bot: Bot,
+    user_id: int,
+    new_state: str,
+    chat_id: int | None = None,
+    override_text: str | None = None,
+    override_kb: InlineKeyboardMarkup | None = None,
+):
+    """Single state transition: delete all previous bot messages, update state, draw fresh screen."""
+    cid = chat_id or (await get_user_message_ids(user_id))[0] or await get_user_chat_id(user_id)
+    if cid is None:
+        log.warning("set_state: no chat_id for user_id=%s", user_id)
+        return
+    await set_user_state_db(user_id, new_state)
+    await _delete_all_bot_messages_for_user(bot, user_id)
+    if override_text is not None:
+        sent = await bot.send_message(cid, override_text, reply_markup=override_kb)
+        await save_user_message(user_id, cid, sent.message_id)
+        return
+    if new_state == USER_STATE_MAIN_MENU:
+        await _draw_main_menu(bot, user_id, cid)
+    elif new_state == USER_STATE_VIEWING_ADS:
+        await _draw_viewing_ads(bot, user_id, cid)
+    elif new_state == USER_STATE_POSTING_AD:
+        await _draw_posting_ad(bot, user_id, cid)
+    elif new_state == USER_STATE_IN_RELAY:
+        await _draw_in_relay(bot, user_id, cid)
+    else:
+        await _draw_main_menu(bot, user_id, cid)
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     try:
@@ -506,15 +626,13 @@ async def cmd_start(message: Message):
 @router.callback_query(F.data.startswith("lang_"))
 async def on_language(callback: CallbackQuery):
     try:
+        await callback.answer()
         lang = callback.data.replace("lang_", "")
         if lang not in LANGUAGES:
             lang = "other"
         await set_user_language(callback.from_user.id, lang)
-        lang_name = LANGUAGES.get(lang, "Other")
-        log.info("User %s (%s) chose language", callback.from_user.id, lang_name)
-        text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
-        await callback.message.edit_text(text, reply_markup=main_menu_keyboard(lang))
-        await callback.answer()
+        log.info("User %s chose language %s", callback.from_user.id, lang)
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_language failed")
 
@@ -524,89 +642,26 @@ async def on_back_to_menu(callback: CallbackQuery, state: FSMContext):
     try:
         await state.clear()
         await callback.answer()
-        user_id = callback.from_user.id
-        bot = callback.bot
-        for cid, mid in await view_ads_get_messages(user_id):
-            try:
-                await bot.delete_message(chat_id=cid, message_id=mid)
-            except Exception:
-                pass
-        await view_ads_clear_messages(user_id)
-        lang = await get_user_language(user_id)
-        text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
-        await callback.message.edit_text(text, reply_markup=main_menu_keyboard(lang))
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_back_to_menu failed")
 
 
 @router.callback_query(F.data == "post_ad")
 async def on_post_ad(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    lang = await get_user_language(callback.from_user.id)
-    await state.set_state(PostAdStates.waiting_text)
-    await state.update_data(lang=lang)
-    prompt = ENTER_AD_TEXT.get(lang, ENTER_AD_TEXT["other"])
-    await callback.message.edit_text(prompt, reply_markup=cancel_keyboard(lang))
-
-
-@router.message(PostAdStates.waiting_text, F.text)
-async def on_ad_text(message: Message, state: FSMContext):
     try:
-        user_id = message.from_user.id
-        bot = message.bot
-        data = await state.get_data()
-        lang = data.get("lang", "other")
-        lang_name = LANGUAGES.get(lang, "Other")
-        preview = (message.text or "")[:80] + ("..." if len(message.text or "") > 80 else "")
-        log.info("User %s (%s) posted ad: %s", user_id, lang_name, preview)
-        author_name = message.from_user.full_name or message.from_user.username or str(user_id)
-        await save_ad(user_id, lang, message.text, author_name)
         await state.clear()
-        confirm = AD_POSTED.get(lang, AD_POSTED["other"])
-        menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
-        text = f"{confirm}\n\n{menu_text}"
-        ok = await edit_user_message(bot, user_id, text, main_menu_keyboard(lang))
-        if not ok:
-            sent = await message.answer(text, reply_markup=main_menu_keyboard(lang))
-            await save_user_message(user_id, message.chat.id, sent.message_id)
+        await callback.answer()
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_POSTING_AD, chat_id=callback.message.chat.id)
     except Exception:
-        log.exception("on_ad_text failed")
+        log.exception("on_post_ad failed")
 
 
 @router.callback_query(F.data == "view_ads")
 async def on_view_ads(callback: CallbackQuery):
     try:
         await callback.answer()
-        user_id = callback.from_user.id
-        viewer_lang = await get_user_language(user_id)
-        lang_name = LANGUAGES.get(viewer_lang, "Other")
-        log.info("User %s (%s) viewed ads", user_id, lang_name)
-        chat_id = callback.message.chat.id
-        bot = callback.bot
-        await view_ads_clear_messages(user_id)
-        ads = await get_last_ads(limit=VIEW_ADS_MAX, offset=0)
-        chat_id_stored, message_id_stored = await get_user_message_ids(user_id)
-        if chat_id_stored is not None and message_id_stored is not None and chat_id_stored == chat_id:
-            try:
-                await bot.delete_message(chat_id=chat_id_stored, message_id=message_id_stored)
-            except Exception:
-                pass
-        if not ads:
-            msg = NO_ADS.get(viewer_lang, NO_ADS["other"])
-            sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(viewer_lang))
-            await save_user_message(user_id, chat_id, sent.message_id)
-            return
-        for i, ad in enumerate(ads):
-            ad_id = int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0)
-            text = await _build_single_ad_text(ad, viewer_lang, ad_id)
-            if len(text) > 4000:
-                text = text[:3997] + "..."
-            is_last = i == len(ads) - 1
-            kb = view_ads_last_ad_keyboard(viewer_lang, ad_id) if is_last else write_to_author_keyboard(viewer_lang, ad_id)
-            sent = await bot.send_message(chat_id, text, reply_markup=kb)
-            await view_ads_add_message(user_id, chat_id, sent.message_id)
-            if is_last:
-                await save_user_message(user_id, chat_id, sent.message_id)
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_VIEWING_ADS, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_view_ads failed")
 
@@ -630,39 +685,44 @@ async def on_reply_ad(callback: CallbackQuery):
         if not ad:
             log.warning("reply_ad: ad_id=%s not found", ad_id)
             return
-        # TODO: re-enable for production — block replying to own ad
-        # if int(ad.get("user_id", 0)) == callback.from_user.id:
-        #     return
         viewer_id = callback.from_user.id
         author_id = int(ad["user_id"])
         viewer_name = callback.from_user.first_name or callback.from_user.username or "Someone"
         log.info("User %s tapped Write to author: viewer=%s, author=%s, ad_id=%s", viewer_id, viewer_id, author_id, ad_id)
         chat_id = callback.message.chat.id
         bot = callback.bot
-        lang_viewer = await get_user_language(viewer_id)
-        connecting_t = await translate_to("Connecting you with the author...", LANGUAGES.get(lang_viewer, "Other"))
-        connecting_msg = await bot.send_message(chat_id, connecting_t)
         session_id = await relay_create(viewer_id, author_id, ad_id, viewer_name=viewer_name)
         log.info("Relay session started: session_id=%s, user_a=%s, user_b=%s, ad_id=%s", session_id, viewer_id, author_id, ad_id)
-        await _delete_all_bot_messages_for_user(bot, viewer_id, except_message_id=connecting_msg.message_id)
-        author_name = ad.get("author_name") or "Author"
-        ad_preview = (ad.get("content") or "")[:300]
-        if len(ad.get("content") or "") > 300:
-            ad_preview += "..."
-        opening_english = f"💬 Chat with {author_name}\nAbout: {ad_preview}\n\nType your message below:"
+        lang_viewer = await get_user_language(viewer_id)
+        opening_english = f"💬 Chat with {ad.get('author_name') or 'Author'}\nAbout: {(ad.get('content') or '')[:300]}{'...' if len(ad.get('content') or '') > 300 else ''}\n\nType your message below:"
         opening_text = await translate_to(opening_english, LANGUAGES.get(lang_viewer, "Other"))
-        try:
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=connecting_msg.message_id,
-                text=opening_text,
-                reply_markup=relay_keyboard(lang_viewer, session_id),
-            )
-        except Exception as edit_err:
-            log.debug("edit_message_text failed: %s", edit_err)
-        await save_user_message(viewer_id, chat_id, connecting_msg.message_id)
+        await set_state(
+            bot, viewer_id, USER_STATE_IN_RELAY, chat_id=chat_id,
+            override_text=opening_text, override_kb=relay_keyboard(lang_viewer, session_id),
+        )
     except Exception:
         log.exception("reply_ad failed")
+
+
+@router.callback_query(F.data.startswith("open_relay_"))
+async def on_open_relay(callback: CallbackQuery):
+    """When user in VIEWING_ADS or POSTING_AD taps 'Open chat' on relay notification."""
+    try:
+        await callback.answer()
+        try:
+            session_id = int(callback.data.replace("open_relay_", "").strip())
+        except ValueError:
+            return
+        session = await relay_get_active_for_user(callback.from_user.id)
+        if not session or int(session.get("id", 0)) != session_id:
+            return
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_IN_RELAY, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_open_relay failed")
 
 
 @router.callback_query(F.data.startswith("relay_reply_"))
@@ -729,58 +789,122 @@ async def on_relay_stop(callback: CallbackQuery, state: FSMContext):
             lang_name = LANGUAGES.get(lang, "Other")
             chat_ended = await translate_to("Chat ended.", lang_name)
             menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
-            await edit_user_message(bot, uid, f"{chat_ended}\n\n{menu_text}", main_menu_keyboard(lang))
+            override = f"{chat_ended}\n\n{menu_text}"
+            await set_state(bot, uid, USER_STATE_MAIN_MENU, override_text=override, override_kb=main_menu_keyboard(lang))
     except Exception:
         log.exception("on_relay_stop failed")
 
 
+def _format_user_text(raw: str) -> str:
+    """Clean format for display: strip, normalize newlines, limit length."""
+    if not raw:
+        return ""
+    text = "\n".join(line.strip() for line in (raw or "").strip().splitlines())
+    return text[:4000] if len(text) > 4000 else text
+
+
 @router.message(F.text)
-async def on_message_relay(message: Message):
+async def on_text_message(message: Message):
+    """Single handler for all text: delete user message, show ⏳, then process and show result."""
     try:
         user_id = message.from_user.id
-        session = await relay_get_active_for_user(user_id)
-        if not session:
-            return
+        chat_id = message.chat.id
         bot = message.bot
-        other_id = await relay_get_other_user(session, user_id)
-        from_name = message.from_user.first_name or message.from_user.username or str(user_id)
-        original = message.text or ""
-        await relay_add_message(session["id"], user_id, from_name, original)
-        other_lang = await get_user_language(other_id)
-        other_lang_name = LANGUAGES.get(other_lang, "Other")
-        translated = await translate_to(original, other_lang_name)
-        orig_preview = original[:60] + ("..." if len(original) > 60 else "")
-        trans_preview = translated[:60] + ("..." if len(translated) > 60 else "")
-        log.info("Relay message forwarded: from=%s to=%s, original=%s, translated=%s", user_id, other_id, orig_preview, trans_preview)
-        my_lang = await get_user_language(user_id)
-        text_for_me = await _build_relay_ui_text(session["id"], user_id, my_lang)
-        if len(text_for_me) > 4000:
-            text_for_me = text_for_me[:3997] + "..."
-        kb_me = relay_keyboard(my_lang, session["id"])
-        await edit_user_message(bot, user_id, text_for_me, kb_me)
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        state = await get_user_state(user_id)
 
-        author_joined = int(session.get("author_joined") or 0)
-        is_author = other_id == int(session["user_b"])
-        if is_author and not author_joined:
-            await _delete_all_bot_messages_for_user(bot, other_id)
-            text_for_other = await _build_relay_ui_text(session["id"], other_id, other_lang, header=False)
-            if len(text_for_other) > 4000:
-                text_for_other = text_for_other[:3997] + "..."
-            kb_other = relay_keyboard(other_lang, session["id"])
-            author_chat_id = await get_user_chat_id(other_id)
-            if author_chat_id:
-                sent = await bot.send_message(
-                    author_chat_id,
-                    text_for_other,
-                    reply_markup=kb_other,
-                )
-                await save_user_message(other_id, author_chat_id, sent.message_id)
-            await relay_set_author_joined(session["id"])
-        else:
-            text_for_other = await _build_relay_ui_text(session["id"], other_id, other_lang)
-            if len(text_for_other) > 4000:
-                text_for_other = text_for_other[:3997] + "..."
-            kb_other = relay_keyboard(other_lang, session["id"])
-            await edit_user_message(bot, other_id, text_for_other, kb_other)
+        if state == USER_STATE_POSTING_AD:
+            processing = await translate_to("⏳ Publishing...", LANGUAGES.get(await get_user_language(user_id), "Other"))
+            proc_msg = await bot.send_message(chat_id, processing)
+            lang = await get_user_language(user_id)
+            raw = (message.text or "").strip()
+            author_name = message.from_user.full_name or message.from_user.username or str(user_id)
+            await save_ad(user_id, lang, raw, author_name)
+            formatted = _format_user_text(raw)
+            confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
+            result_text = f"✅ {confirm}\n\n{formatted}"
+            menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
+            try:
+                await proc_msg.delete()
+            except Exception:
+                pass
+            await set_state(
+                bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id,
+                override_text=result_text + "\n\n" + menu_text, override_kb=main_menu_keyboard(lang),
+            )
+            return
+        if state == USER_STATE_IN_RELAY:
+            session = await relay_get_active_for_user(user_id)
+            if not session:
+                await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
+                return
+            proc_msg = await bot.send_message(chat_id, "⏳")
+            from_name = message.from_user.first_name or message.from_user.username or str(user_id)
+            original = message.text or ""
+            await relay_add_message(session["id"], user_id, from_name, original)
+            other_id = await relay_get_other_user(session, user_id)
+            other_lang = await get_user_language(other_id)
+            other_lang_name = LANGUAGES.get(other_lang, "Other")
+            log.info("Relay message forwarded: from=%s to=%s", user_id, other_id)
+            my_lang = await get_user_language(user_id)
+            text_for_me = await _build_relay_ui_text(session["id"], user_id, my_lang)
+            if len(text_for_me) > 4000:
+                text_for_me = text_for_me[:3997] + "..."
+            kb_me = relay_keyboard(my_lang, session["id"])
+            try:
+                await proc_msg.delete()
+            except Exception:
+                pass
+            await edit_user_message(bot, user_id, text_for_me, kb_me)
+
+            other_state = await get_user_state(other_id)
+            author_joined = int(session.get("author_joined") or 0)
+            is_author = other_id == int(session["user_b"])
+            if other_state in (USER_STATE_VIEWING_ADS, USER_STATE_POSTING_AD):
+                other_chat_id = await get_user_chat_id(other_id)
+                if other_chat_id:
+                    if is_author:
+                        sender_name = session.get("viewer_name") or "Someone"
+                    else:
+                        ad = await get_ad_by_id(int(session.get("ad_id", 0)))
+                        sender_name = (ad.get("author_name") if ad else None) or "Someone"
+                    lang_other = await get_user_language(other_id)
+                    label = NEW_MESSAGE_FROM_TEXTS.get(lang_other, NEW_MESSAGE_FROM_TEXTS["other"])
+                    open_btn = OPEN_CHAT_BTN_TEXTS.get(lang_other, OPEN_CHAT_BTN_TEXTS["other"])
+                    notification_text = f"{label} {sender_name}"
+                    await bot.send_message(
+                        other_chat_id,
+                        notification_text,
+                        reply_markup=InlineKeyboardMarkup(
+                            inline_keyboard=[[InlineKeyboardButton(text=open_btn, callback_data=f"open_relay_{session['id']}")]]
+                        ),
+                    )
+            elif is_author and not author_joined:
+                author_chat_id = await get_user_chat_id(other_id)
+                if author_chat_id:
+                    text_for_other = await _build_relay_ui_text(session["id"], other_id, other_lang, header=False)
+                    if len(text_for_other) > 4000:
+                        text_for_other = text_for_other[:3997] + "..."
+                    await set_state(
+                        bot, other_id, USER_STATE_IN_RELAY, chat_id=author_chat_id,
+                        override_text=text_for_other, override_kb=relay_keyboard(other_lang, session["id"]),
+                    )
+                await relay_set_author_joined(session["id"])
+            else:
+                text_for_other = await _build_relay_ui_text(session["id"], other_id, other_lang)
+                if len(text_for_other) > 4000:
+                    text_for_other = text_for_other[:3997] + "..."
+                await edit_user_message(bot, other_id, text_for_other, relay_keyboard(other_lang, session["id"]))
+            return
+        if state in (USER_STATE_MAIN_MENU, USER_STATE_VIEWING_ADS):
+            proc_msg = await bot.send_message(chat_id, "⏳")
+            await set_state(bot, user_id, state, chat_id=chat_id)
+            try:
+                await proc_msg.delete()
+            except Exception:
+                pass
     except Exception:
-        log.exception("on_message_relay failed")
+        log.exception("on_text_message failed")

@@ -20,7 +20,8 @@ async def init_db():
                 user_id INTEGER PRIMARY KEY,
                 language TEXT NOT NULL DEFAULT 'other',
                 chat_id INTEGER,
-                message_id INTEGER
+                message_id INTEGER,
+                state TEXT NOT NULL DEFAULT 'MAIN_MENU'
             )"""
         )
         await db.execute(
@@ -76,6 +77,11 @@ async def init_db():
             pass
         try:
             await db.execute("ALTER TABLE relay_sessions ADD COLUMN author_joined INTEGER NOT NULL DEFAULT 0")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN state TEXT NOT NULL DEFAULT 'MAIN_MENU'")
             await db.commit()
         except aiosqlite.OperationalError:
             pass

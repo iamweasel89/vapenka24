@@ -208,3 +208,39 @@ aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query
 2026-03-15 02:24:11 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
 2026-03-15 02:24:12 | INFO | Relay session started: session_id=2, user_a=5121687297, user_b=7509358328, ad_id=1
 2026-03-15 02:24:39 | INFO | Relay message forwarded: from=5121687297 to=7509358328, original=Máte niečo na predaj?, translated=У вас є щось на продаж?
+2026-03-15 03:13:28 | INFO | User 5121687297 started bot
+2026-03-15 03:13:28 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 03:13:31 | INFO | User 5121687297 chose language sk
+2026-03-15 03:13:51 | INFO | User 7509358328 started bot
+2026-03-15 03:13:51 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 03:13:53 | INFO | User 7509358328 chose language uk
+2026-03-15 03:14:32 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 03:14:32 | INFO | Relay session started: session_id=3, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 03:14:55 | INFO | Relay message forwarded: from=5121687297 to=7509358328
+2026-03-15 03:16:41 | INFO | Relay message forwarded: from=7509358328 to=5121687297
+2026-03-15 03:25:47 | INFO | User 7509358328 started bot
+2026-03-15 03:25:48 | INFO | User 7509358328 chose language uk
+2026-03-15 03:27:48 | INFO | User 5121687297 started bot
+2026-03-15 03:27:50 | INFO | User 5121687297 chose language sk
+2026-03-15 03:28:05 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 03:28:05 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 03:29:03 | INFO | Relay message forwarded: from=5121687297 to=7509358328
+2026-03-15 03:30:15 | INFO | Relay message forwarded: from=7509358328 to=5121687297
+2026-03-15 03:37:56 | INFO | User 7509358328 started bot
+2026-03-15 03:37:56 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 03:37:58 | INFO | User 7509358328 chose language uk
+2026-03-15 03:39:02 | INFO | User 5121687297 started bot
+2026-03-15 03:39:02 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 03:39:19 | INFO | User 5121687297 chose language sk
+2026-03-15 03:41:19 | INFO | User 7509358328 started bot
+2026-03-15 03:41:19 | INFO | User 7509358328 started bot
+2026-03-15 03:41:19 | INFO | User 7509358328 started bot
+2026-03-15 03:41:27 | INFO | User 7509358328 started bot
+2026-03-15 03:41:27 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 03:41:29 | INFO | User 7509358328 chose language uk
+2026-03-15 03:42:27 | INFO | User 5121687297 started bot
+2026-03-15 03:42:29 | INFO | User 5121687297 chose language sk
+2026-03-15 03:42:46 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 03:42:46 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 03:43:08 | INFO | Relay message forwarded: from=5121687297 to=7509358328
+2026-03-15 03:44:10 | INFO | Relay message forwarded: from=7509358328 to=5121687297
