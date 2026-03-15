@@ -1,3 +1,4 @@
+import asyncio
 import aiosqlite
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -607,11 +608,16 @@ async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
         sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(viewer_lang))
         await save_user_message(user_id, chat_id, sent.message_id)
         return
-    for i, ad in enumerate(ads):
-        ad_id = int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0)
-        text = await _build_single_ad_text(ad, viewer_lang, ad_id)
+    # Translate all ads in parallel
+    tasks = [
+        _build_single_ad_text(ad, viewer_lang, int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0))
+        for ad in ads
+    ]
+    texts = await asyncio.gather(*tasks)
+    for i, (ad, text) in enumerate(zip(ads, texts)):
         if len(text) > 4000:
             text = text[:3997] + "..."
+        ad_id = int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0)
         is_last = i == len(ads) - 1
         kb = view_ads_last_ad_keyboard(viewer_lang, ad_id) if is_last else write_to_author_keyboard(viewer_lang, ad_id)
         sent = await bot.send_message(chat_id, text, reply_markup=kb)
