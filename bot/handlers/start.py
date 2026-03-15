@@ -66,10 +66,10 @@ BACK_TO_CHATS_TEXTS = {
 
 # Ad type labels for confirmation and view ads (sk, uz, tl, uk, other)
 TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "other": "Selling"}
-TYPE_LABEL_BUY = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "other": "Looking for"}
+TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "other": "Looking for"}
 TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "other": "Giving away"}
 TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "other": "Other"}
-TYPE_LABELS = {"SELL": TYPE_LABEL_SELL, "BUY": TYPE_LABEL_BUY, "GIVE": TYPE_LABEL_GIVE, "OTHER": TYPE_LABEL_OTHER}
+TYPE_LABELS = {"SELL": TYPE_LABEL_SELL, "SEEK": TYPE_LABEL_SEEK, "GIVE": TYPE_LABEL_GIVE, "OTHER": TYPE_LABEL_OTHER}
 
 CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "other": "✅ Correct"}
 CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "other": "✏️ Change type"}
@@ -861,7 +861,7 @@ async def on_ad_type_change(callback: CallbackQuery):
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["other"]), callback_data=f"set_type_{ad_id}_SELL")],
-                [InlineKeyboardButton(text=TYPE_LABEL_BUY.get(lang, TYPE_LABEL_BUY["other"]), callback_data=f"set_type_{ad_id}_BUY")],
+                [InlineKeyboardButton(text=TYPE_LABEL_SEEK.get(lang, TYPE_LABEL_SEEK["other"]), callback_data=f"set_type_{ad_id}_SEEK")],
                 [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["other"]), callback_data=f"set_type_{ad_id}_GIVE")],
                 [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["other"]), callback_data=f"set_type_{ad_id}_OTHER")],
             ]
@@ -884,7 +884,7 @@ async def on_set_type(callback: CallbackQuery):
             ad_type = str(parts[1]).upper()
         except (ValueError, IndexError):
             return
-        if ad_type not in ("SELL", "BUY", "GIVE", "OTHER"):
+        if ad_type not in ("SELL", "SEEK", "GIVE", "OTHER"):
             return
         await update_ad_type(ad_id, ad_type)
         await set_state(
@@ -915,7 +915,7 @@ async def on_view_ads(callback: CallbackQuery):
 
 @router.callback_query(F.data == "view_ads_filter_open")
 async def on_view_ads_filter_open(callback: CallbackQuery):
-    """Show type filter options: ALL, SELL, BUY, GIVE, OTHER."""
+    """Show type filter options: ALL, SELL, SEEK, GIVE, OTHER."""
     try:
         await callback.answer()
         lang = await get_user_language(callback.from_user.id)
@@ -924,7 +924,7 @@ async def on_view_ads_filter_open(callback: CallbackQuery):
             inline_keyboard=[
                 [InlineKeyboardButton(text=all_t, callback_data="view_ads_filter_ALL")],
                 [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["other"]), callback_data="view_ads_filter_SELL")],
-                [InlineKeyboardButton(text=TYPE_LABEL_BUY.get(lang, TYPE_LABEL_BUY["other"]), callback_data="view_ads_filter_BUY")],
+                [InlineKeyboardButton(text=TYPE_LABEL_SEEK.get(lang, TYPE_LABEL_SEEK["other"]), callback_data="view_ads_filter_SEEK")],
                 [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["other"]), callback_data="view_ads_filter_GIVE")],
                 [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["other"]), callback_data="view_ads_filter_OTHER")],
             ]
@@ -944,7 +944,7 @@ async def on_view_ads_filter_select(callback: CallbackQuery):
         if not raw.startswith("view_ads_filter_"):
             return
         value = raw.replace("view_ads_filter_", "").strip()
-        if value not in ("ALL", "SELL", "BUY", "GIVE", "OTHER"):
+        if value not in ("ALL", "SELL", "SEEK", "GIVE", "OTHER"):
             return
         await set_user_view_ads_filter(callback.from_user.id, value)
         await set_state(callback.bot, callback.from_user.id, USER_STATE_VIEWING_ADS, chat_id=callback.message.chat.id)
