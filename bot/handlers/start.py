@@ -1390,10 +1390,6 @@ async def on_text_message(message: Message):
             confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
             type_label = _ad_type_label(detected_type, lang)
             result_text = f"✅ {confirm}\n\n🏷 {await translate_to('Detected type:', LANGUAGES.get(lang, 'Other'))} {type_label}\n\n{formatted}"
-            try:
-                await proc_msg.delete()
-            except Exception:
-                pass
             correct_t = CONFIRM_TYPE_CORRECT.get(lang, CONFIRM_TYPE_CORRECT["other"])
             change_t = CONFIRM_TYPE_CHANGE.get(lang, CONFIRM_TYPE_CHANGE["other"])
             confirm_kb = InlineKeyboardMarkup(
@@ -1402,10 +1398,25 @@ async def on_text_message(message: Message):
                     [InlineKeyboardButton(text=change_t, callback_data=f"ad_type_change_{ad_id}")],
                 ]
             )
-            await set_state(
-                bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id,
-                override_text=result_text, override_kb=confirm_kb,
-            )
+            prompt_chat_id, prompt_msg_id = await get_user_message_ids(user_id)
+            if prompt_chat_id and prompt_msg_id and prompt_msg_id != proc_msg.message_id:
+                try:
+                    await bot.delete_message(chat_id=prompt_chat_id, message_id=prompt_msg_id)
+                except Exception:
+                    pass
+            try:
+                await proc_msg.edit_text(result_text, reply_markup=confirm_kb)
+            except Exception:
+                sent = await bot.send_message(chat_id, result_text, reply_markup=confirm_kb)
+                try:
+                    await proc_msg.delete()
+                except Exception:
+                    pass
+                await save_user_message(user_id, chat_id, sent.message_id)
+                await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+                return
+            await save_user_message(user_id, chat_id, proc_msg.message_id)
+            await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
             return
         if state == USER_STATE_IN_RELAY:
             relay_id = await get_user_current_relay_id(user_id)
@@ -1414,15 +1425,16 @@ async def on_text_message(message: Message):
                 await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
                 return
             proc_msg = await bot.send_message(chat_id, "⏳")
+            await asyncio.sleep(1)
+            try:
+                await proc_msg.delete()
+            except Exception:
+                pass
             from_name = message.from_user.first_name or message.from_user.username or str(user_id)
             original = message.text or ""
             approved, reject_reason = await moderate_content(original)
             if not approved:
                 log.info("MODERATION: message REJECTED - %s", reject_reason or "")
-                try:
-                    await proc_msg.delete()
-                except Exception:
-                    pass
                 my_lang = await get_user_language(user_id)
                 prefix = await translate_to("Message not sent:", LANGUAGES.get(my_lang, "Other"))
                 reason_t = await translate_to(reject_reason or "Content not allowed", LANGUAGES.get(my_lang, "Other"))
@@ -1439,10 +1451,6 @@ async def on_text_message(message: Message):
             if len(text_for_me) > 4000:
                 text_for_me = text_for_me[:3997] + "..."
             kb_me = relay_keyboard(my_lang, session["id"])
-            try:
-                await proc_msg.delete()
-            except Exception:
-                pass
             await edit_user_message(bot, user_id, text_for_me, kb_me)
 
             other_state = await get_user_state(other_id)
@@ -1490,10 +1498,11 @@ async def on_text_message(message: Message):
                 await edit_user_message(bot, other_id, text_for_other, relay_keyboard(other_lang, session["id"]))
             return
         if state in (USER_STATE_MAIN_MENU, USER_STATE_VIEWING_ADS, USER_STATE_MY_CHATS):
-            proc_msg = await bot.send_message(chat_id, "⏳")
-            await set_state(bot, user_id, state, chat_id=chat_id)
+            warn_t = await translate_to("Please use the buttons below.", LANGUAGES.get(await get_user_language(user_id), "Other"))
+            warn_msg = await bot.send_message(chat_id, f"⚠️ {warn_t}")
+            await asyncio.sleep(2)
             try:
-                await proc_msg.delete()
+                await warn_msg.delete()
             except Exception:
                 pass
     except Exception:

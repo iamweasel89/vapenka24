@@ -417,3 +417,21 @@ sqlite3.OperationalError: no such column: created_at
 2026-03-15 06:27:20 | INFO | MODERATION: ad REJECTED - Contains adult content.
 2026-03-15 06:27:56 | INFO | MODERATION: ad REJECTED - The text is in a language that suggests it is a sale (likely of coffee), which may not be appropriate without proper context or approval for commercial activities on a residential dormitory bulletin board.
 2026-03-15 06:28:58 | INFO | MODERATION: ad 1 APPROVED
+2026-03-15 06:47:03 | INFO | User 5121687297 started bot
+2026-03-15 06:47:03 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 06:47:08 | INFO | User 5121687297 chose language sk
+2026-03-15 06:47:24 | INFO | User 7509358328 started bot
+2026-03-15 06:47:24 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 06:47:26 | INFO | User 7509358328 chose language uk
+2026-03-15 06:48:01 | INFO | MODERATION: ad 2 APPROVED
+2026-03-15 06:49:32 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=2
+2026-03-15 06:49:32 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=2
+2026-03-15 06:50:07 | INFO | MODERATION: message APPROVED (relay_id=1)
+2026-03-15 06:50:07 | INFO | Relay message forwarded: from=5121687297 to=7509358328
+2026-03-15 07:01:27 | INFO | User 5121687297 started bot
+2026-03-15 07:01:27 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:01:30 | INFO | User 5121687297 chose language sk
+2026-03-15 07:01:53 | INFO | MODERATION: ad 3 APPROVED
+2026-03-15 07:02:22 | INFO | User 7509358328 started bot
+2026-03-15 07:02:22 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:02:24 | INFO | User 7509358328 chose language uk
