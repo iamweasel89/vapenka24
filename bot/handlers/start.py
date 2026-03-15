@@ -226,6 +226,25 @@ OPEN_CHAT_BTN_TEXTS = {
     "hu": "Chat megnyitása",
 }
 
+FEEDBACK_BTN_TEXTS = {
+    "sk": "💬 Spätná väzba",
+    "uz": "💬 Fikr-mulohaza",
+    "tl": "💬 Feedback",
+    "uk": "💬 Зворотний зв'язок",
+    "ro": "💬 Feedback",
+    "en": "💬 Feedback",
+    "hu": "💬 Visszajelzés",
+}
+FEEDBACK_PROMPT_TEXTS = {
+    "sk": "Napíšte svoju spätnú väzbu (vo svojom jazyku):",
+    "uz": "Fikr-mulohazangizni yozing (o'z tilingizda):",
+    "tl": "Isulat ang iyong feedback (sa iyong wika):",
+    "uk": "Напишіть свій відгук (своєю мовою):",
+    "ro": "Scrie feedback-ul tău (în limba ta):",
+    "en": "Write your feedback (in your language):",
+    "hu": "Írja meg visszajelzését (a saját nyelvén):",
+}
+
 CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову / Alegeți limba / Válasszon nyelvet:"
 
 WELCOME_MESSAGE_EN = (
@@ -285,6 +304,7 @@ def main_menu_keyboard(lang: str, user_id: int | None = None) -> InlineKeyboardM
         [InlineKeyboardButton(text=POST_AD_TEXTS.get(lang, POST_AD_TEXTS["en"]), callback_data="post_ad")],
         [InlineKeyboardButton(text=VIEW_ADS_TEXTS.get(lang, VIEW_ADS_TEXTS["en"]), callback_data="view_ads")],
         [InlineKeyboardButton(text=MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["en"]), callback_data="my_chats")],
+        [InlineKeyboardButton(text=FEEDBACK_BTN_TEXTS.get(lang, FEEDBACK_BTN_TEXTS["en"]), callback_data="feedback")],
     ]
     if user_id is not None and ADMIN_USER_ID is not None and user_id == ADMIN_USER_ID:
         rows.append([InlineKeyboardButton(text="⚙️ Admin", callback_data="admin_menu")])
@@ -363,6 +383,7 @@ USER_STATE_POSTING_AD_PHOTO = "POSTING_AD_PHOTO"
 USER_STATE_MY_CHATS = "MY_CHATS"
 USER_STATE_IN_RELAY = "IN_RELAY"
 USER_STATE_ADMIN_MENU = "ADMIN_MENU"
+USER_STATE_FEEDBACK = "FEEDBACK"
 
 
 async def get_user_state(user_id: int) -> str:
@@ -885,6 +906,16 @@ async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | N
     await save_user_message(user_id, chat_id, sent.message_id)
 
 
+async def _draw_feedback_prompt(bot: Bot, user_id: int, chat_id: int):
+    lang = await get_user_language(user_id)
+    prompt = FEEDBACK_PROMPT_TEXTS.get(lang, FEEDBACK_PROMPT_TEXTS["en"])
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=BACK_TEXTS.get(lang, BACK_TEXTS["en"]), callback_data="back_to_menu")]]
+    )
+    sent = await bot.send_message(chat_id, prompt, reply_markup=kb)
+    await save_user_message(user_id, chat_id, sent.message_id)
+
+
 async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
     viewer_lang = await get_user_language(user_id)
     loading_text = await translate_to("⏳ Loading...", LANGUAGES.get(viewer_lang, "Other"))
@@ -1062,6 +1093,8 @@ async def set_state(
         await _draw_in_relay(bot, user_id, cid)
     elif new_state == USER_STATE_ADMIN_MENU:
         await _draw_admin_menu(bot, user_id, cid)
+    elif new_state == USER_STATE_FEEDBACK:
+        await _draw_feedback_prompt(bot, user_id, cid)
     else:
         await _draw_main_menu(bot, user_id, cid)
 
@@ -1267,6 +1300,15 @@ async def on_view_ads(callback: CallbackQuery):
         await set_state(callback.bot, callback.from_user.id, USER_STATE_VIEWING_ADS, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_view_ads failed")
+
+
+@router.callback_query(F.data == "feedback")
+async def on_feedback(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_FEEDBACK, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_feedback failed")
 
 
 @router.callback_query(F.data == "view_ads_filter_open")
@@ -1781,6 +1823,41 @@ async def on_text_message(message: Message):
         except Exception:
             pass
         state = await get_user_state(user_id)
+
+        if state == USER_STATE_FEEDBACK:
+            raw = (message.text or "").strip()
+            if not raw:
+                lang = await get_user_language(user_id)
+                prompt = FEEDBACK_PROMPT_TEXTS.get(lang, FEEDBACK_PROMPT_TEXTS["en"])
+                await bot.send_message(chat_id, prompt)
+                return
+            sent_confirm = await bot.send_message(chat_id, "✅ Sent")
+            lang = await get_user_language(user_id)
+            lang_name = LANGUAGES.get(lang, LANGUAGES["en"])
+            user_name = message.from_user.full_name or message.from_user.username or str(user_id)
+            try:
+                translation_ru = await translate_to(raw, "Russian")
+            except Exception:
+                translation_ru = raw
+            admin_text = (
+                f"💬 Feedback from {user_name} ({lang_name}):\n"
+                f"Original: {raw}\n"
+                f"Russian: {translation_ru}"
+            )
+            if ADMIN_USER_ID:
+                admin_chat_id = await get_user_chat_id(ADMIN_USER_ID)
+                if admin_chat_id:
+                    try:
+                        await bot.send_message(admin_chat_id, admin_text)
+                    except Exception as e:
+                        log.warning("Failed to send feedback to admin: %s", e)
+            await asyncio.sleep(1.5)
+            try:
+                await sent_confirm.delete()
+            except Exception:
+                pass
+            await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
+            return
 
         if state == USER_STATE_POSTING_AD_PHOTO:
             try:
