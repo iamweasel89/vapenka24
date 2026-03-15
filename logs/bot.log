@@ -456,3 +456,53 @@ sqlite3.OperationalError: no such column: created_at
 2026-03-15 07:27:57 | INFO | User 5121687297 chose language sk
 2026-03-15 07:28:14 | INFO | MODERATION: ad 6 APPROVED
 2026-03-15 07:29:02 | INFO | MODERATION: ad REJECTED - Contains vague "services" that suggest potential adult/sexual services.
+2026-03-15 07:32:38 | INFO | User 5121687297 started bot
+2026-03-15 07:32:38 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:32:40 | INFO | User 5121687297 chose language sk
+2026-03-15 07:32:44 | INFO | User 7509358328 started bot
+2026-03-15 07:32:44 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:32:45 | INFO | User 7509358328 chose language uk
+2026-03-15 07:33:10 | INFO | MODERATION: ad REJECTED - Not clear if it refers to legitimate services; could imply adult/sexual services or business offers.
+2026-03-15 07:33:40 | INFO | MODERATION: ad REJECTED - Contains a request for apartment rental which may imply illegitimate services or arrangements.
+2026-03-15 07:34:07 | INFO | MODERATION: ad REJECTED - Lacks clarity and necessary information (no documentation).
+2026-03-15 07:34:33 | INFO | MODERATION: ad 7 APPROVED
+2026-03-15 07:34:37 | INFO | MODERATION: ad 7 SUSPICIOUS - Deliberately vague request suggesting potential commercial/business offer.
+2026-03-15 07:35:17 | INFO | MODERATION: ad REJECTED - Lacks clarity and context for the service being offered.
+2026-03-15 07:44:06 | INFO | ADMIN_MODERATION: ad 7 removed by admin
+2026-03-15 07:44:18 | INFO | User 7509358328 started bot
+2026-03-15 07:44:18 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:44:19 | INFO | User 7509358328 chose language uk
+2026-03-15 07:44:30 | INFO | User 5121687297 started bot
+2026-03-15 07:44:30 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:44:35 | INFO | User 5121687297 chose language sk
+2026-03-15 07:45:10 | INFO | MODERATION: ad 8 APPROVED
+2026-03-15 07:45:14 | INFO | MODERATION: ad 8 SUSPICIOUS - Vague wording about "documents" could imply unclear services.
+2026-03-15 07:45:40 | INFO | MODERATION: ad 9 APPROVED
+2026-03-15 07:46:44 | INFO | MODERATION: ad 10 APPROVED
+2026-03-15 07:47:42 | INFO | MODERATION: ad 11 APPROVED
+2026-03-15 07:47:46 | INFO | MODERATION: ad 11 SUSPICIOUS - Vague "business" offer.
+2026-03-15 07:48:21 | INFO | MODERATION: ad 12 APPROVED
+2026-03-15 07:48:24 | INFO | MODERATION: ad 12 SUSPICIOUS - Vague "services" offering for night-time transportation.
+2026-03-15 07:50:43 | INFO | ADMIN_MODERATION: ad 8 removed by admin
+2026-03-15 07:50:44 | INFO | ADMIN_MODERATION: ad 11 removed by admin
+2026-03-15 07:50:45 | INFO | ADMIN_MODERATION: ad 12 removed by admin
+2026-03-15 08:03:48 | INFO | User 7509358328 started bot
+2026-03-15 08:03:48 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 08:03:50 | INFO | User 7509358328 chose language uk
+2026-03-15 08:03:55 | INFO | User 5121687297 started bot
+2026-03-15 08:03:55 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 08:03:56 | INFO | User 5121687297 chose language sk
+2026-03-15 08:04:14 | INFO | MODERATION: ad 13 APPROVED
+2026-03-15 08:04:19 | INFO | MODERATION: ad 13 SUSPICIOUS - Deliberately vague "services" offered.
+2026-03-15 08:05:01 | INFO | ADMIN_MODERATION: ad 13 removed by admin
+2026-03-15 08:09:51 | INFO | User 5121687297 started bot
+2026-03-15 08:09:51 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 08:09:56 | INFO | User 5121687297 started bot
+2026-03-15 08:09:56 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 08:09:57 | INFO | User 5121687297 chose language sk
+2026-03-15 08:10:02 | INFO | User 7509358328 started bot
+2026-03-15 08:10:02 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 08:10:04 | INFO | User 7509358328 chose language uk
+2026-03-15 08:10:32 | INFO | MODERATION: ad 14 APPROVED
+2026-03-15 08:10:36 | INFO | MODERATION: ad 14 SUSPICIOUS - Deliberately vague "services" related to documentation.
+2026-03-15 08:11:43 | INFO | ADMIN_MODERATION: ad 14 removed by admin

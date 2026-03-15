@@ -454,11 +454,81 @@ async def admin_delete_ad(ad_id: int):
         await db.commit()
 
 
+async def insert_suspicious_ad(ad_id: int) -> None:
+    """Record a suspicious ad for admin review (status=pending)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO suspicious_ads (ad_id, notified_at, status) VALUES (?, datetime('now'), 'pending')",
+            (ad_id,),
+        )
+        await db.commit()
+
+
+async def get_pending_suspicious_count() -> int:
+    """Count of suspicious ads with status=pending."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM suspicious_ads WHERE status = 'pending'"
+        ) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
+
+
+async def get_pending_suspicious_ads() -> list:
+    """Pending suspicious ads with ad content (join ads). Returns list of dicts with ad_id, content, notified_at."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT s.ad_id, s.notified_at, a.content
+               FROM suspicious_ads s
+               JOIN ads a ON a.id = s.ad_id
+               WHERE s.status = 'pending'
+               ORDER BY s.notified_at ASC"""
+        ) as cur:
+            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+
+
+async def update_suspicious_status(ad_id: int, status: str) -> None:
+    """Set status for a suspicious ad: pending, kept, or removed."""
+    if status not in ("pending", "kept", "removed"):
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE suspicious_ads SET status = ? WHERE ad_id = ?",
+            (status, ad_id),
+        )
+        await db.commit()
+
+
+async def update_suspicious_notification(ad_id: int, chat_id: int, message_id: int) -> None:
+    """Store the admin push notification message so we can delete it after review."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE suspicious_ads SET notification_chat_id = ?, notification_message_id = ? WHERE ad_id = ?",
+            (chat_id, message_id, ad_id),
+        )
+        await db.commit()
+
+
+async def get_suspicious_notification(ad_id: int) -> tuple[int | None, int | None]:
+    """Return (chat_id, message_id) for the admin notification message, or (None, None)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT notification_chat_id, notification_message_id FROM suspicious_ads WHERE ad_id = ?",
+            (ad_id,),
+        ) as cur:
+            row = await cur.fetchone()
+            if not row or row[0] is None or row[1] is None:
+                return None, None
+            return int(row[0]), int(row[1])
+
+
 async def admin_clear_ads_and_relays():
-    """Delete all ads and relay data; keep users."""
+    """Delete all ads, relay data, and suspicious_ads; keep users."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM relay_messages")
         await db.execute("DELETE FROM relay_sessions")
+        await db.execute("DELETE FROM suspicious_ads")
         await db.execute("DELETE FROM ads")
         await db.commit()
 
@@ -796,9 +866,12 @@ async def _draw_in_relay(bot: Bot, user_id: int, chat_id: int):
     await save_user_message(user_id, chat_id, sent.message_id)
 
 
-def _admin_menu_keyboard() -> InlineKeyboardMarkup:
+async def _admin_menu_keyboard() -> InlineKeyboardMarkup:
+    pending = await get_pending_suspicious_count()
+    pending_label = f"⚠️ Pending review ({pending})" if pending else "⚠️ Pending review"
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text=pending_label, callback_data="admin_pending_review")],
             [InlineKeyboardButton(text="👥 Users", callback_data="admin_users")],
             [InlineKeyboardButton(text="📋 Ads", callback_data="admin_ads")],
             [InlineKeyboardButton(text="🗑️ Clear database", callback_data="admin_clear")],
@@ -819,9 +892,10 @@ async def _draw_admin_menu(bot: Bot, user_id: int, chat_id: int):
         await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
         await _draw_main_menu(bot, user_id, chat_id)
         return
+    kb = await _admin_menu_keyboard()
     sent = await bot.send_message(
         chat_id, "⚙️ Admin",
-        reply_markup=_admin_menu_keyboard(),
+        reply_markup=kb,
     )
     await save_user_message(user_id, chat_id, sent.message_id)
 
@@ -1192,6 +1266,62 @@ async def on_admin_stats(callback: CallbackQuery):
         log.exception("on_admin_stats failed")
 
 
+async def _redraw_pending_review(bot: Bot, chat_id: int, message_id: int) -> None:
+    """Build and edit the pending suspicious ads screen. Used by admin_pending_review and after Remove/Keep."""
+    pending = await get_pending_suspicious_ads()
+    back_btn = [InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")]
+    if not pending:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text="⚠️ Pending review\n\nNo pending reviews.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[back_btn]),
+        )
+        return
+    lines = ["⚠️ Pending review\n"]
+    buttons = []
+    max_content = 350
+    for item in pending:
+        ad_id = item.get("ad_id")
+        content = (item.get("content") or "").strip()
+        content_show = content[:max_content] + "..." if len(content) > max_content else content
+        ru = await translate_to(content_show if content_show else "(empty)", "Russian")
+        ru_show = ru[:max_content] + "..." if len(ru) > max_content else ru
+        lines.append(f"--- Ad #{ad_id} ---")
+        lines.append("Original:\n" + content_show)
+        lines.append("Russian:\n" + ru_show)
+        lines.append("")
+        buttons.append([
+            InlineKeyboardButton(text="🗑️ Remove", callback_data=f"admin_suspicious_remove_{ad_id}"),
+            InlineKeyboardButton(text="✅ Keep", callback_data=f"admin_suspicious_keep_{ad_id}"),
+        ])
+    buttons.append(back_btn)
+    text = "\n".join(lines).strip()
+    if len(text) > 4000:
+        text = text[:3997] + "\n..."
+    await bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=message_id,
+        text=text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+    )
+
+
+@router.callback_query(F.data == "admin_pending_review")
+async def on_admin_pending_review(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        await _redraw_pending_review(
+            callback.bot,
+            callback.message.chat.id,
+            callback.message.message_id,
+        )
+    except Exception:
+        log.exception("on_admin_pending_review failed")
+
+
 @router.callback_query(F.data.startswith("admin_suspicious_remove_"))
 async def on_admin_suspicious_remove(callback: CallbackQuery):
     try:
@@ -1202,9 +1332,20 @@ async def on_admin_suspicious_remove(callback: CallbackQuery):
             ad_id = int(callback.data.replace("admin_suspicious_remove_", "").strip())
         except ValueError:
             return
+        notif_chat_id, notif_msg_id = await get_suspicious_notification(ad_id)
+        if notif_chat_id is not None and notif_msg_id is not None:
+            try:
+                await callback.bot.delete_message(chat_id=notif_chat_id, message_id=notif_msg_id)
+            except Exception:
+                pass
+        await update_suspicious_status(ad_id, "removed")
         await admin_delete_ad(ad_id)
         log.info("ADMIN_MODERATION: ad %s removed by admin", ad_id)
-        await callback.message.edit_text(f"Ad {ad_id} removed by admin.")
+        await _redraw_pending_review(
+            callback.bot,
+            callback.message.chat.id,
+            callback.message.message_id,
+        )
     except Exception:
         log.exception("on_admin_suspicious_remove failed")
 
@@ -1219,8 +1360,19 @@ async def on_admin_suspicious_keep(callback: CallbackQuery):
             ad_id = int(callback.data.replace("admin_suspicious_keep_", "").strip())
         except ValueError:
             return
+        notif_chat_id, notif_msg_id = await get_suspicious_notification(ad_id)
+        if notif_chat_id is not None and notif_msg_id is not None:
+            try:
+                await callback.bot.delete_message(chat_id=notif_chat_id, message_id=notif_msg_id)
+            except Exception:
+                pass
+        await update_suspicious_status(ad_id, "kept")
         log.info("ADMIN_MODERATION: ad %s kept by admin", ad_id)
-        await callback.message.edit_text(f"Ad {ad_id} kept by admin.")
+        await _redraw_pending_review(
+            callback.bot,
+            callback.message.chat.id,
+            callback.message.message_id,
+        )
     except Exception:
         log.exception("on_admin_suspicious_keep failed")
 
@@ -1452,27 +1604,14 @@ async def on_text_message(message: Message):
             await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
             if verdict == "SUSPICIOUS":
                 log.info("MODERATION: ad %s SUSPICIOUS - %s", ad_id, reason or "")
+                await insert_suspicious_ad(ad_id)
                 admin_chat_id = await get_user_chat_id(ADMIN_USER_ID) if ADMIN_USER_ID else None
                 if admin_chat_id:
-                    # Send as a separate message; do not update admin's stored message_id or state so it doesn't affect their current screen
-                    ad_content_only = (raw or "").strip()[:2000]
-                    ru_translation = await translate_to(ad_content_only, "Russian") if ad_content_only else ""
-                    header = "⚠️ Suspicious ad published. Please review:\n\n"
-                    original_block = "Original:\n" + ad_content_only + "\n\n"
-                    russian_block = "Russian:\n" + ru_translation
-                    notify_body = header + original_block + russian_block
-                    if len(notify_body) > 4000:
-                        notify_body = notify_body[:3997] + "..."
-                    await bot.send_message(
+                    sent = await bot.send_message(
                         admin_chat_id,
-                        notify_body,
-                        reply_markup=InlineKeyboardMarkup(
-                            inline_keyboard=[
-                                [InlineKeyboardButton(text="🗑️ Remove ad", callback_data=f"admin_suspicious_remove_{ad_id}")],
-                                [InlineKeyboardButton(text="✅ Keep ad", callback_data=f"admin_suspicious_keep_{ad_id}")],
-                            ]
-                        ),
+                        "⚠️ New suspicious ad requires review",
                     )
+                    await update_suspicious_notification(ad_id, admin_chat_id, sent.message_id)
             return
         if state == USER_STATE_IN_RELAY:
             relay_id = await get_user_current_relay_id(user_id)

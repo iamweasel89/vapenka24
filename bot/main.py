@@ -137,6 +137,23 @@ async def init_db():
                 PRIMARY KEY (user_id, message_id)
             )"""
         )
+        await db.execute(
+            """CREATE TABLE IF NOT EXISTS suspicious_ads (
+                ad_id INTEGER PRIMARY KEY,
+                notified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT NOT NULL DEFAULT 'pending',
+                FOREIGN KEY (ad_id) REFERENCES ads(id)
+            )"""
+        )
+        for col, typ in [
+            ("notification_chat_id", "INTEGER"),
+            ("notification_message_id", "INTEGER"),
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE suspicious_ads ADD COLUMN {col} {typ}")
+                await db.commit()
+            except aiosqlite.OperationalError:
+                pass
         await db.commit()
 
 

@@ -2,11 +2,20 @@ from openai import AsyncOpenAI
 
 from bot.config import OPENAI_API_KEY
 
-MODERATION_PROMPT = """Is this text appropriate for a residential dormitory bulletin board?
-APPROVED: All normal peer-to-peer trading — buying/selling everyday items (bikes, furniture, food, clothes, books, electronics, etc.), giving away items, seeking roommates, tutoring, local services. Default to APPROVED for any clear personal ad or straightforward commerce between residents.
-REJECT only if it contains: explicit threats or violence, illegal drugs, adult/sexual services, hate speech.
-SUSPICIOUS: Only when there are genuine red flags — e.g. deliberately vague "services" or "stuff", unusual requests that suggest code words, or commercial/business offers disguised as personal ads. Do NOT flag normal listings (e.g. "selling my bike", "looking for a chair", "free coffee") as SUSPICIOUS.
-Reply with only: APPROVED or REJECTED: [brief reason] or SUSPICIOUS: [brief reason]"""
+MODERATION_PROMPT = """You classify ads for a residential dormitory bulletin board. Use exactly one of three verdicts.
+
+REJECTED — Use ONLY for these four categories. Nothing else. If in doubt, do NOT use REJECTED.
+1. Explicit threats or violence (direct threats to harm someone).
+2. Illegal drugs (offering, selling, or seeking illegal drugs).
+3. Adult/sexual services (prostitution, escort services, explicit sexual offers).
+4. Hate speech (targeting people by race, religion, ethnicity, etc.).
+Do NOT reject: cash payments, urgent requests, "no documents", "no box", used items, roommates, tutoring, everyday buying/selling, vague wording, or anything that is merely odd or unclear. Reserve REJECTED for clearly illegal or harmful content.
+
+SUSPICIOUS — Publish the ad but flag for admin review. Use for: deliberately vague "services" or "stuff"; unusual urgency or payment conditions; possible stolen goods; ambiguous business/commercial offers; anything that seems odd but is NOT clearly illegal. Do NOT use SUSPICIOUS for normal listings (e.g. selling a bike, looking for a chair, cash only, urgent, no receipt).
+
+APPROVED — Everything else. This includes: selling/buying used items (with or without box/documents), looking for roommates, cash payments, urgent requests, everyday commerce between neighbors, giving things away, tutoring, local services, and any normal personal ad. When unsure between APPROVED and SUSPICIOUS, prefer APPROVED. When unsure between APPROVED and REJECTED, always use APPROVED.
+
+Reply with exactly one line: APPROVED or REJECTED: [brief reason] or SUSPICIOUS: [brief reason]"""
 
 
 async def moderate_content(text: str) -> tuple[str, str | None]:
