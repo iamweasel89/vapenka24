@@ -85,6 +85,18 @@ async def init_db():
             await db.commit()
         except aiosqlite.OperationalError:
             pass
+        try:
+            await db.execute("ALTER TABLE relay_sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+            await db.commit()
+            await db.execute("UPDATE relay_sessions SET status = 'active' WHERE status IS NULL OR status = ''")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN current_relay_id INTEGER")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
         await db.execute(
             """CREATE TABLE IF NOT EXISTS relay_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

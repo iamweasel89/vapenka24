@@ -244,3 +244,19 @@ aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query
 2026-03-15 03:42:46 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=1
 2026-03-15 03:43:08 | INFO | Relay message forwarded: from=5121687297 to=7509358328
 2026-03-15 03:44:10 | INFO | Relay message forwarded: from=7509358328 to=5121687297
+2026-03-15 04:09:08 | INFO | User 7509358328 started bot
+2026-03-15 04:09:10 | INFO | User 7509358328 chose language uk
+2026-03-15 04:10:56 | INFO | User 5121687297 started bot
+2026-03-15 04:10:58 | INFO | User 5121687297 chose language sk
+2026-03-15 04:11:55 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 04:11:55 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 04:12:02 | INFO | Relay message forwarded: from=5121687297 to=7509358328
+2026-03-15 04:12:51 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=2
+2026-03-15 04:12:51 | INFO | Relay session started: session_id=2, user_a=5121687297, user_b=7509358328, ad_id=2
+2026-03-15 04:13:13 | INFO | Relay message forwarded: from=5121687297 to=7509358328
+2026-03-15 04:14:25 | INFO | Relay message forwarded: from=7509358328 to=5121687297
+2026-03-15 04:15:53 | INFO | User 7509358328 tapped Write to author: viewer=7509358328, author=5121687297, ad_id=3
+2026-03-15 04:15:54 | INFO | Relay session started: session_id=3, user_a=7509358328, user_b=5121687297, ad_id=3
+2026-03-15 04:15:55 | INFO | User 7509358328 tapped Write to author: viewer=7509358328, author=5121687297, ad_id=3
+2026-03-15 04:15:55 | INFO | Relay session started: session_id=4, user_a=7509358328, user_b=5121687297, ad_id=3
+2026-03-15 04:16:11 | INFO | Relay message forwarded: from=7509358328 to=5121687297

@@ -1,4 +1,5 @@
 import aiosqlite
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from aiogram import Router, F, Bot
@@ -36,6 +37,30 @@ VIEW_ADS_TEXTS = {
     "tl": "Tingnan ang mga ad",
     "uk": "Переглянути оголошення",
     "other": "View ads",
+}
+
+MY_CHATS_TEXTS = {
+    "sk": "Moje chaty",
+    "uz": "Mening chatlarim",
+    "tl": "Aking mga chat",
+    "uk": "Мої чати",
+    "other": "My chats",
+}
+
+NO_CHATS_TEXTS = {
+    "sk": "Zatiaľ žiadne aktívne chaty.",
+    "uz": "Hozircha faol chatlar yo'q.",
+    "tl": "Walang aktibong mga chat pa.",
+    "uk": "Поки немає активних чатів.",
+    "other": "No active chats yet.",
+}
+
+BACK_TO_CHATS_TEXTS = {
+    "sk": "🔙 Späť na chaty",
+    "uz": "🔙 Chatlarga qaytish",
+    "tl": "🔙 Bumalik sa mga chat",
+    "uk": "🔙 Назад до чатів",
+    "other": "🔙 Back to chats",
 }
 
 ENTER_AD_TEXT = {
@@ -184,6 +209,7 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text=POST_AD_TEXTS[lang], callback_data="post_ad")],
             [InlineKeyboardButton(text=VIEW_ADS_TEXTS[lang], callback_data="view_ads")],
+            [InlineKeyboardButton(text=MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["other"]), callback_data="my_chats")],
         ]
     )
 
@@ -257,6 +283,7 @@ async def get_user_language(user_id: int) -> str:
 USER_STATE_MAIN_MENU = "MAIN_MENU"
 USER_STATE_VIEWING_ADS = "VIEWING_ADS"
 USER_STATE_POSTING_AD = "POSTING_AD"
+USER_STATE_MY_CHATS = "MY_CHATS"
 USER_STATE_IN_RELAY = "IN_RELAY"
 
 
@@ -279,6 +306,23 @@ async def set_user_state_db(user_id: int, state: str):
                ON CONFLICT(user_id) DO UPDATE SET state = excluded.state""",
             (user_id, state),
         )
+        await db.commit()
+
+
+async def get_user_current_relay_id(user_id: int) -> int | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT current_relay_id FROM users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            if row and row[0] is not None:
+                return int(row[0])
+            return None
+
+
+async def set_user_current_relay_id(user_id: int, session_id: int | None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET current_relay_id = ? WHERE user_id = ?", (session_id, user_id))
         await db.commit()
 
 
@@ -411,22 +455,36 @@ CALLBACK_REPLY_AD_PREFIX = "reply_ad_"
 async def relay_create(user_a: int, user_b: int, ad_id: int, viewer_name: str = "") -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "INSERT INTO relay_sessions (user_a, user_b, ad_id, viewer_name) VALUES (?, ?, ?, ?)",
+            "INSERT INTO relay_sessions (user_a, user_b, ad_id, viewer_name, status) VALUES (?, ?, ?, ?, 'active')",
             (user_a, user_b, ad_id, viewer_name or ""),
         )
         await db.commit()
         return cur.lastrowid
 
 
-async def relay_get_active_for_user(user_id: int):
+async def relay_get_active_sessions_for_user(user_id: int) -> list:
+    """All active relay sessions where user is participant (user_a or user_b)."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, user_a, user_b, ad_id, viewer_name, author_joined FROM relay_sessions WHERE user_a = ? OR user_b = ? ORDER BY id DESC LIMIT 1",
+            """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
+               FROM relay_sessions WHERE status = 'active' AND (user_a = ? OR user_b = ?) ORDER BY id DESC""",
             (user_id, user_id),
         ) as cur:
+            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+
+
+async def relay_get_session_by_id(session_id: int, active_only: bool = True) -> dict | None:
+    """Get session by id. If active_only, only return when status='active'."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        q = """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
+               FROM relay_sessions WHERE id = ?"""
+        if active_only:
+            q += " AND status = 'active'"
+        async with db.execute(q, (session_id,)) as cur:
             row = await cur.fetchone()
-            return _row_to_dict(row)
+            return _row_to_dict(row) if row else None
 
 
 async def relay_set_author_joined(relay_id: int):
@@ -460,14 +518,18 @@ async def relay_get_messages(relay_id: int):
 
 async def relay_close(relay_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM relay_sessions WHERE id = ?", (relay_id,))
+        await db.execute("UPDATE relay_sessions SET status = 'closed' WHERE id = ?", (relay_id,))
         await db.commit()
 
 
 def relay_keyboard(lang: str, session_id: int) -> InlineKeyboardMarkup:
+    back_chats_t = BACK_TO_CHATS_TEXTS.get(lang, BACK_TO_CHATS_TEXTS["other"])
     stop_t = RELAY_STOP_TEXTS.get(lang, RELAY_STOP_TEXTS["other"])
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=stop_t, callback_data=f"relay_stop_{session_id}")]]
+        inline_keyboard=[
+            [InlineKeyboardButton(text=back_chats_t, callback_data="back_to_chats")],
+            [InlineKeyboardButton(text=stop_t, callback_data=f"relay_stop_{session_id}")],
+        ]
     )
 
 
@@ -552,9 +614,64 @@ async def _draw_posting_ad(bot: Bot, user_id: int, chat_id: int):
     await save_user_message(user_id, chat_id, sent.message_id)
 
 
+def _ad_preview_short(content: str, max_len: int = 200) -> str:
+    if not content:
+        return ""
+    return (content.strip()[:max_len] + "...") if len(content) > max_len else content.strip()
+
+
+async def _draw_my_chats(bot: Bot, user_id: int, chat_id: int):
+    lang = await get_user_language(user_id)
+    sessions = await relay_get_active_sessions_for_user(user_id)
+    if not sessions:
+        msg = NO_CHATS_TEXTS.get(lang, NO_CHATS_TEXTS["other"])
+        back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
+        sent = await bot.send_message(
+            chat_id, msg,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=back_t, callback_data="back_to_menu")]]),
+        )
+        await save_user_message(user_id, chat_id, sent.message_id)
+        return
+    by_ad: dict[int, list] = defaultdict(list)
+    for s in sessions:
+        by_ad[int(s["ad_id"])].append(s)
+    lines = []
+    keyboard_buttons = []
+    target_lang_name = LANGUAGES.get(lang, "Other")
+    for ad_id, ad_sessions in sorted(by_ad.items(), key=lambda x: -x[0]):
+        ad = await get_ad_by_id(ad_id)
+        if not ad:
+            continue
+        content = ad.get("content") or ""
+        preview = await translate_to(_ad_preview_short(content, 180), target_lang_name)
+        lines.append(f"📌 {preview}")
+        for s in ad_sessions:
+            other_id = s["user_b"] if int(s["user_a"]) == user_id else s["user_a"]
+            if int(s["user_a"]) == user_id:
+                partner_name = (ad.get("author_name") or "Author")[:30]
+            else:
+                partner_name = (s.get("viewer_name") or "Someone")[:30]
+            lines.append(f"  💬 {partner_name}")
+            chat_btn = f"💬 {partner_name}"
+            keyboard_buttons.append([InlineKeyboardButton(text=chat_btn, callback_data=f"open_relay_{s['id']}")])
+    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
+    keyboard_buttons.append([InlineKeyboardButton(text=back_t, callback_data="back_to_menu")])
+    title = MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["other"])
+    text = f"{title}\n\n" + "\n".join(lines) if lines else NO_CHATS_TEXTS.get(lang, NO_CHATS_TEXTS["other"])
+    if len(text) > 4000:
+        text = text[:3997] + "..."
+    sent = await bot.send_message(
+        chat_id, text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_buttons),
+    )
+    await save_user_message(user_id, chat_id, sent.message_id)
+
+
 async def _draw_in_relay(bot: Bot, user_id: int, chat_id: int):
-    session = await relay_get_active_for_user(user_id)
-    if not session:
+    relay_id = await get_user_current_relay_id(user_id)
+    session = await relay_get_session_by_id(relay_id) if relay_id else None
+    if not session or (int(session.get("user_a", 0)) != user_id and int(session.get("user_b", 0)) != user_id):
+        await set_user_current_relay_id(user_id, None)
         await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
         await _draw_main_menu(bot, user_id, chat_id)
         return
@@ -586,11 +703,15 @@ async def set_state(
         await save_user_message(user_id, cid, sent.message_id)
         return
     if new_state == USER_STATE_MAIN_MENU:
+        await set_user_current_relay_id(user_id, None)
         await _draw_main_menu(bot, user_id, cid)
     elif new_state == USER_STATE_VIEWING_ADS:
         await _draw_viewing_ads(bot, user_id, cid)
     elif new_state == USER_STATE_POSTING_AD:
         await _draw_posting_ad(bot, user_id, cid)
+    elif new_state == USER_STATE_MY_CHATS:
+        await set_user_current_relay_id(user_id, None)
+        await _draw_my_chats(bot, user_id, cid)
     elif new_state == USER_STATE_IN_RELAY:
         await _draw_in_relay(bot, user_id, cid)
     else:
@@ -666,6 +787,24 @@ async def on_view_ads(callback: CallbackQuery):
         log.exception("on_view_ads failed")
 
 
+@router.callback_query(F.data == "my_chats")
+async def on_my_chats(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_MY_CHATS, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_my_chats failed")
+
+
+@router.callback_query(F.data == "back_to_chats")
+async def on_back_to_chats(callback: CallbackQuery, state: FSMContext):
+    try:
+        await state.clear()
+        await callback.answer()
+        await set_user_current_relay_id(callback.from_user.id, None)
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_MY_CHATS, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_back_to_chats failed")
 
 
 @router.callback_query(F.data.startswith(CALLBACK_REPLY_AD_PREFIX))
@@ -693,6 +832,7 @@ async def on_reply_ad(callback: CallbackQuery):
         bot = callback.bot
         session_id = await relay_create(viewer_id, author_id, ad_id, viewer_name=viewer_name)
         log.info("Relay session started: session_id=%s, user_a=%s, user_b=%s, ad_id=%s", session_id, viewer_id, author_id, ad_id)
+        await set_user_current_relay_id(viewer_id, session_id)
         lang_viewer = await get_user_language(viewer_id)
         opening_english = f"💬 Chat with {ad.get('author_name') or 'Author'}\nAbout: {(ad.get('content') or '')[:300]}{'...' if len(ad.get('content') or '') > 300 else ''}\n\nType your message below:"
         opening_text = await translate_to(opening_english, LANGUAGES.get(lang_viewer, "Other"))
@@ -706,21 +846,25 @@ async def on_reply_ad(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("open_relay_"))
 async def on_open_relay(callback: CallbackQuery):
-    """When user in VIEWING_ADS or POSTING_AD taps 'Open chat' on relay notification."""
+    """Open a specific relay (from My chats or from notification)."""
     try:
         await callback.answer()
         try:
             session_id = int(callback.data.replace("open_relay_", "").strip())
         except ValueError:
             return
-        session = await relay_get_active_for_user(callback.from_user.id)
-        if not session or int(session.get("id", 0)) != session_id:
+        session = await relay_get_session_by_id(session_id, active_only=True)
+        if not session:
+            return
+        user_id = callback.from_user.id
+        if int(session.get("user_a", 0)) != user_id and int(session.get("user_b", 0)) != user_id:
             return
         try:
             await callback.message.delete()
         except Exception:
             pass
-        await set_state(callback.bot, callback.from_user.id, USER_STATE_IN_RELAY, chat_id=callback.message.chat.id)
+        await set_user_current_relay_id(user_id, session_id)
+        await set_state(callback.bot, user_id, USER_STATE_IN_RELAY, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_open_relay failed")
 
@@ -733,36 +877,17 @@ async def on_relay_reply(callback: CallbackQuery):
             session_id = int(callback.data.replace("relay_reply_", ""))
         except ValueError:
             return
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute(
-                "SELECT id, user_a, user_b, ad_id, viewer_name FROM relay_sessions WHERE id = ?", (session_id,)
-            ) as cur:
-                row = await cur.fetchone()
-                row = _row_to_dict(row) if row else None
-                if not row or int(row.get("user_b", 0)) != callback.from_user.id:
-                    return
+        session = await relay_get_session_by_id(session_id, active_only=True)
+        if not session or int(session.get("user_b", 0)) != callback.from_user.id:
+            return
         author_id = callback.from_user.id
-        bot = callback.bot
         log.info("User %s joined relay session_id=%s", author_id, session_id)
         try:
             await callback.message.delete()
         except Exception:
             pass
-        await _delete_all_bot_messages_for_user(bot, author_id)
-        ad = await get_ad_by_id(int(row["ad_id"]))
-        ad_preview = (ad.get("content") or "")[:300] if ad else ""
-        if ad and len(ad.get("content") or "") > 300:
-            ad_preview += "..."
-        other_name = (row.get("viewer_name") or "").strip() or "Someone"
-        lang = await get_user_language(author_id)
-        opening_text = _relay_opening_text(lang, other_name, ad_preview)
-        sent = await bot.send_message(
-            callback.message.chat.id,
-            opening_text,
-            reply_markup=relay_keyboard(lang, session_id),
-        )
-        await save_user_message(author_id, callback.message.chat.id, sent.message_id)
+        await set_user_current_relay_id(author_id, session_id)
+        await set_state(callback.bot, author_id, USER_STATE_IN_RELAY, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_relay_reply failed")
 
@@ -776,14 +901,19 @@ async def on_relay_stop(callback: CallbackQuery, state: FSMContext):
             session_id = int(callback.data.replace("relay_stop_", "").strip())
         except ValueError:
             return
-        session = await relay_get_active_for_user(callback.from_user.id)
-        if not session or int(session.get("id", 0)) != session_id:
+        session = await relay_get_session_by_id(session_id, active_only=True)
+        if not session:
+            return
+        user_id = callback.from_user.id
+        if int(session.get("user_a", 0)) != user_id and int(session.get("user_b", 0)) != user_id:
             return
         user_a_id = int(session["user_a"])
         user_b_id = int(session["user_b"])
         log.info("Relay session ended: session_id=%s, user_a=%s, user_b=%s", session_id, user_a_id, user_b_id)
         bot = callback.bot
         await relay_close(session_id)
+        await set_user_current_relay_id(user_a_id, None)
+        await set_user_current_relay_id(user_b_id, None)
         for uid in (user_a_id, user_b_id):
             lang = await get_user_language(uid)
             lang_name = LANGUAGES.get(lang, "Other")
@@ -837,7 +967,8 @@ async def on_text_message(message: Message):
             )
             return
         if state == USER_STATE_IN_RELAY:
-            session = await relay_get_active_for_user(user_id)
+            relay_id = await get_user_current_relay_id(user_id)
+            session = await relay_get_session_by_id(relay_id) if relay_id else None
             if not session:
                 await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
                 return
@@ -866,15 +997,20 @@ async def on_text_message(message: Message):
             if other_state in (USER_STATE_VIEWING_ADS, USER_STATE_POSTING_AD):
                 other_chat_id = await get_user_chat_id(other_id)
                 if other_chat_id:
+                    ad = await get_ad_by_id(int(session.get("ad_id", 0)))
                     if is_author:
                         sender_name = session.get("viewer_name") or "Someone"
                     else:
-                        ad = await get_ad_by_id(int(session.get("ad_id", 0)))
                         sender_name = (ad.get("author_name") if ad else None) or "Someone"
+                    ad_preview = _ad_preview_short(ad.get("content") or "", 120) if ad else ""
+                    if ad_preview:
+                        ad_preview = await translate_to(ad_preview, LANGUAGES.get(await get_user_language(other_id), "Other"))
                     lang_other = await get_user_language(other_id)
                     label = NEW_MESSAGE_FROM_TEXTS.get(lang_other, NEW_MESSAGE_FROM_TEXTS["other"])
                     open_btn = OPEN_CHAT_BTN_TEXTS.get(lang_other, OPEN_CHAT_BTN_TEXTS["other"])
                     notification_text = f"{label} {sender_name}"
+                    if ad_preview:
+                        notification_text += f"\n\n📌 {ad_preview}"
                     await bot.send_message(
                         other_chat_id,
                         notification_text,
@@ -899,7 +1035,7 @@ async def on_text_message(message: Message):
                     text_for_other = text_for_other[:3997] + "..."
                 await edit_user_message(bot, other_id, text_for_other, relay_keyboard(other_lang, session["id"]))
             return
-        if state in (USER_STATE_MAIN_MENU, USER_STATE_VIEWING_ADS):
+        if state in (USER_STATE_MAIN_MENU, USER_STATE_VIEWING_ADS, USER_STATE_MY_CHATS):
             proc_msg = await bot.send_message(chat_id, "⏳")
             await set_state(bot, user_id, state, chat_id=chat_id)
             try:
