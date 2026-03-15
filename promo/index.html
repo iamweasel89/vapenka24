@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vápenka 24 – Telegram bot</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #1a1a1a;
+      background: #f5f5f5;
+      padding: 1rem;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    h1 {
+      margin: 0;
+      padding: 1.25rem 1rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      background: linear-gradient(135deg, #2a9d8f 0%, #264653 100%);
+      color: #fff;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      padding: 0.75rem 1rem;
+      background: #eee;
+      border-bottom: 1px solid #ddd;
+      justify-content: center;
+    }
+    .tabs button {
+      padding: 0.4rem 0.65rem;
+      font-size: 0.8rem;
+      border: none;
+      border-radius: 6px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .tabs button:hover {
+      background: #e0e0e0;
+    }
+    .tabs button.active {
+      background: #2a9d8f;
+      color: #fff;
+    }
+    .panel {
+      display: none;
+      padding: 1.25rem 1rem;
+      min-height: 140px;
+    }
+    .panel.active { display: block; }
+    .panel p {
+      margin: 0 0 0.75rem;
+    }
+    .panel p:last-child { margin-bottom: 0; }
+    .qr-wrap {
+      text-align: center;
+      padding: 1rem;
+      background: #fafafa;
+      margin: 0 1rem 1rem;
+      border-radius: 8px;
+    }
+    #qrcode { display: inline-block; }
+    #qrcode img { display: block; border-radius: 6px; }
+    .cta {
+      display: block;
+      width: calc(100% - 2rem);
+      margin: 0 1rem 1.25rem;
+      padding: 0.9rem 1.25rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      text-decoration: none;
+      color: #fff;
+      background: #0088cc;
+      border-radius: 8px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .cta:hover { background: #006699; }
+    .cta:active { transform: scale(0.98); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Vápenka 24</h1>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-lang="sk" aria-selected="true">SK</button>
+      <button type="button" role="tab" data-lang="uk">UK</button>
+      <button type="button" role="tab" data-lang="uz">UZ</button>
+      <button type="button" role="tab" data-lang="tl">TL</button>
+      <button type="button" role="tab" data-lang="ro">RO</button>
+      <button type="button" role="tab" data-lang="en">EN</button>
+      <button type="button" role="tab" data-lang="hu">HU</button>
+    </div>
+
+    <div id="panel-sk" class="panel active" role="tabpanel">
+      <p>Predávaš veci, hľadáš spolubývajúceho alebo chceš niečo rozdať zadarmo? Uverejni inzerát — uvidia ho všetci obyvatelia vo svojom jazyku. Bot prekladá automaticky. Slovák číta po slovensky, Ukrajinec po ukrajinsky, Uzbek po uzbecky. Odpovedať môžeš tiež vo svojom jazyku — druhý dostane preklad. Všetko anonymne. Registrácia nie je potrebná. Stačí stlačiť Štart.</p>
+    </div>
+    <div id="panel-uk" class="panel" role="tabpanel">
+      <p>Продаєш речі, шукаєш сусіда чи хочеш щось віддати безкорисно? Напиши оголошення — його побачать усі мешканці своєю мовою. Бот перекладає автоматично. Словак читає словацькою, українець — українською, узбек — узбецькою. Відповідати теж можна своєю мовою — співрозмовник отримає переклад. Все анонімно. Реєстрація не потрібна. Просто натисни Старт.</p>
+    </div>
+    <div id="panel-uz" class="panel" role="tabpanel">
+      <p>Narsa sotasizmi, qo'shni qidiryapsizmi yoki biror narsani bepul bermoqchimisiz? E'lon yozing — barcha turar-joy aholisi o'z tilida ko'radi. Bot avtomatik tarjima qiladi. Slovakcha slovak o'qiydi, ukraincha — ukrain, o'zbekcha — o'zbek. Javob ham o'z tilingizda berishingiz mumkin — suhbatdosh tarjimani oladi. Hamma narsa anonim. Ro'yxatdan o'tish shart emas. Faqat Start bosing.</p>
+    </div>
+    <div id="panel-tl" class="panel" role="tabpanel">
+      <p>Nagbebenta ng gamit, naghahanap ng ka-roommate o gusto mong magbigay ng libre? Mag-post ng ad — makikita ito ng lahat ng residente sa kanilang wika. Awtomatikong isinasalin ng bot. Babasahin ng Slovak sa Slovak, ng Ukrainian sa Ukrainian, ng Uzbek sa Uzbek. Pwede ring sumagot sa sariling wika — makakatanggap ng salin ang kausap. Lahat anonymous. Walang registration. Pindutin lang ang Start.</p>
+    </div>
+    <div id="panel-ro" class="panel" role="tabpanel">
+      <p>Vinzi lucruri, cauți un colec de apartament sau vrei să dai ceva gratuit? Scrie un anunț — îl vor vedea toți locuitorii în limba lor. Botul traduce automat. Slovacul citește în slovacă, ucraineanul în ucraineană, uzbekul în uzbekă. Poți răspunde și tu în limba ta — interlocutorul primește traducerea. Totul e anonim. Fără înregistrare. Doar apasă Start.</p>
+    </div>
+    <div id="panel-en" class="panel" role="tabpanel">
+      <p>Selling stuff, looking for a roommate or want to give something away? Post an ad — all residents will see it in their language. The bot translates automatically. A Slovak reads in Slovak, a Ukrainian in Ukrainian, an Uzbek in Uzbek. You can reply in your language too — the other person gets the translation. Everything is anonymous. No registration needed. Just tap Start.</p>
+    </div>
+    <div id="panel-hu" class="panel" role="tabpanel">
+      <p>Eladod a cuccaidat, lakótársat keresel vagy ingyen odaadnál valamit? Hirdetést írhatsz — minden lakó a saját nyelvén látja. A bot automatikusan fordít. A szlovák szlovákul, az ukrán ukránul, az üzbég üzbégül olvassa. Válaszolni is a saját nyelveden lehet — a beszélgetőpartner a fordítást kapja. Minden névtelen. Nincs regisztráció. Csak kattints a Startra.</p>
+    </div>
+
+    <div class="qr-wrap">
+      <div id="qrcode"></div>
+    </div>
+    <a class="cta" href="https://t.me/vapenka24_bot" target="_blank" rel="noopener">Open in Telegram</a>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    (function() {
+      var BOT_URL = 'https://t.me/vapenka24_bot';
+      new QRCode(document.getElementById('qrcode'), { text: BOT_URL, width: 200, height: 200 });
+
+      var tabs = document.querySelectorAll('.tabs button');
+      var panels = document.querySelectorAll('.panel');
+      tabs.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var lang = this.getAttribute('data-lang');
+          tabs.forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+          panels.forEach(function(p) { p.classList.remove('active'); });
+          this.classList.add('active');
+          this.setAttribute('aria-selected', 'true');
+          var panel = document.getElementById('panel-' + lang);
+          if (panel) panel.classList.add('active');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
