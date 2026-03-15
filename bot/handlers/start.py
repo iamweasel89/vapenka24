@@ -8,9 +8,9 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 
-from bot.config import DB_PATH, LANGUAGES
+from bot.config import DB_PATH, LANGUAGES, ADMIN_USER_ID
 from bot.logging_config import get_logger
-from bot.translate import translate_to, classify_ad_type
+from bot.translate import translate_to, classify_ad_type, moderate_content
 
 log = get_logger()
 
@@ -218,14 +218,15 @@ def lang_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=POST_AD_TEXTS[lang], callback_data="post_ad")],
-            [InlineKeyboardButton(text=VIEW_ADS_TEXTS[lang], callback_data="view_ads")],
-            [InlineKeyboardButton(text=MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["other"]), callback_data="my_chats")],
-        ]
-    )
+def main_menu_keyboard(lang: str, user_id: int | None = None) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(text=POST_AD_TEXTS[lang], callback_data="post_ad")],
+        [InlineKeyboardButton(text=VIEW_ADS_TEXTS[lang], callback_data="view_ads")],
+        [InlineKeyboardButton(text=MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["other"]), callback_data="my_chats")],
+    ]
+    if user_id is not None and ADMIN_USER_ID is not None and user_id == ADMIN_USER_ID:
+        rows.append([InlineKeyboardButton(text="⚙️ Admin", callback_data="admin_menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def back_keyboard(lang: str) -> InlineKeyboardMarkup:
@@ -299,6 +300,7 @@ USER_STATE_VIEWING_ADS = "VIEWING_ADS"
 USER_STATE_POSTING_AD = "POSTING_AD"
 USER_STATE_MY_CHATS = "MY_CHATS"
 USER_STATE_IN_RELAY = "IN_RELAY"
+USER_STATE_ADMIN_MENU = "ADMIN_MENU"
 
 
 async def get_user_state(user_id: int) -> str:
@@ -420,6 +422,54 @@ async def set_user_view_ads_filter(user_id: int, value: str):
             "UPDATE users SET view_ads_filter = ? WHERE user_id = ?", (value, user_id)
         )
         await db.commit()
+
+
+async def get_all_users() -> list:
+    """All registered users for admin list."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT user_id, language, created_at FROM users ORDER BY user_id"
+        ) as cur:
+            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+
+
+async def get_all_active_ads_admin() -> list:
+    """All active ads for admin list (expires_at > now)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT id, user_id, author_name, type, content, expires_at
+               FROM ads WHERE expires_at > datetime('now') ORDER BY id DESC"""
+        ) as cur:
+            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+
+
+async def admin_delete_ad(ad_id: int):
+    """Delete one ad and its relay sessions/messages."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM relay_messages WHERE relay_id IN (SELECT id FROM relay_sessions WHERE ad_id = ?)", (ad_id,))
+        await db.execute("DELETE FROM relay_sessions WHERE ad_id = ?", (ad_id,))
+        await db.execute("DELETE FROM ads WHERE id = ?", (ad_id,))
+        await db.commit()
+
+
+async def admin_clear_ads_and_relays():
+    """Delete all ads and relay data; keep users."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM relay_messages")
+        await db.execute("DELETE FROM relay_sessions")
+        await db.execute("DELETE FROM ads")
+        await db.commit()
+
+
+async def count_active_relay_sessions() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM relay_sessions WHERE status = 'active'"
+        ) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
 
 
 async def get_user_chat_id(user_id: int) -> int | None:
@@ -649,7 +699,7 @@ async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | N
     if text is None:
         text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
     if reply_markup is None:
-        reply_markup = main_menu_keyboard(lang)
+        reply_markup = main_menu_keyboard(lang, user_id)
     sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
     await save_user_message(user_id, chat_id, sent.message_id)
 
@@ -746,6 +796,36 @@ async def _draw_in_relay(bot: Bot, user_id: int, chat_id: int):
     await save_user_message(user_id, chat_id, sent.message_id)
 
 
+def _admin_menu_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👥 Users", callback_data="admin_users")],
+            [InlineKeyboardButton(text="📋 Ads", callback_data="admin_ads")],
+            [InlineKeyboardButton(text="🗑️ Clear database", callback_data="admin_clear")],
+            [InlineKeyboardButton(text="📊 Stats", callback_data="admin_stats")],
+            [InlineKeyboardButton(text="🔙 Back", callback_data="admin_back_to_menu")],
+        ]
+    )
+
+
+def _admin_back_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")]]
+    )
+
+
+async def _draw_admin_menu(bot: Bot, user_id: int, chat_id: int):
+    if ADMIN_USER_ID is None or user_id != ADMIN_USER_ID:
+        await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+        await _draw_main_menu(bot, user_id, chat_id)
+        return
+    sent = await bot.send_message(
+        chat_id, "⚙️ Admin",
+        reply_markup=_admin_menu_keyboard(),
+    )
+    await save_user_message(user_id, chat_id, sent.message_id)
+
+
 async def set_state(
     bot: Bot,
     user_id: int,
@@ -777,6 +857,8 @@ async def set_state(
         await _draw_my_chats(bot, user_id, cid)
     elif new_state == USER_STATE_IN_RELAY:
         await _draw_in_relay(bot, user_id, cid)
+    elif new_state == USER_STATE_ADMIN_MENU:
+        await _draw_admin_menu(bot, user_id, cid)
     else:
         await _draw_main_menu(bot, user_id, cid)
 
@@ -840,7 +922,7 @@ async def on_ad_type_ok(callback: CallbackQuery):
         await set_state(
             callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id,
             override_text=MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"]),
-            override_kb=main_menu_keyboard(lang),
+            override_kb=main_menu_keyboard(lang, callback.from_user.id),
         )
     except Exception:
         log.exception("on_ad_type_ok failed")
@@ -950,6 +1032,164 @@ async def on_view_ads_filter_select(callback: CallbackQuery):
         await set_state(callback.bot, callback.from_user.id, USER_STATE_VIEWING_ADS, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_view_ads_filter_select failed")
+
+
+def _require_admin(user_id: int) -> bool:
+    return ADMIN_USER_ID is not None and user_id == ADMIN_USER_ID
+
+
+@router.callback_query(F.data == "admin_menu")
+async def on_admin_menu(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_ADMIN_MENU, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_admin_menu failed")
+
+
+@router.callback_query(F.data == "admin_back_to_menu")
+async def on_admin_back_to_menu(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        lang = await get_user_language(callback.from_user.id)
+        await set_state(
+            callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id,
+            override_text=MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"]),
+            override_kb=main_menu_keyboard(lang, callback.from_user.id),
+        )
+    except Exception:
+        log.exception("on_admin_back_to_menu failed")
+
+
+@router.callback_query(F.data == "admin_back")
+async def on_admin_back(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_ADMIN_MENU, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_admin_back failed")
+
+
+@router.callback_query(F.data == "admin_users")
+async def on_admin_users(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        users = await get_all_users()
+        lines = ["👥 Users\n"]
+        for u in users:
+            uid = u.get("user_id") or "?"
+            lang = u.get("language") or "?"
+            created = u.get("created_at") or "—"
+            if created and created != "—":
+                try:
+                    created = str(created)[:19]
+                except Exception:
+                    pass
+            lines.append(f"User {uid} · {lang} · {created}")
+        text = "\n".join(lines) if lines else "👥 No users."
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+        await callback.message.edit_text(text, reply_markup=_admin_back_keyboard())
+    except Exception:
+        log.exception("on_admin_users failed")
+
+
+@router.callback_query(F.data == "admin_ads")
+async def on_admin_ads(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        ads = await get_all_active_ads_admin()
+        lines = ["📋 Active ads\n"]
+        buttons = []
+        for ad in ads:
+            aid = ad.get("id")
+            author = (ad.get("author_name") or "?")[:30]
+            atype = ad.get("type") or "?"
+            content_preview = _ad_preview_short(ad.get("content") or "", 60)
+            expires = str(ad.get("expires_at") or "?")[:19]
+            lines.append(f"#{aid} {author} · {atype}\n{content_preview}\nExpires: {expires}")
+            buttons.append([InlineKeyboardButton(text=f"🗑️ Delete #{aid}", callback_data=f"admin_del_ad_{aid}")])
+        buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")])
+        text = "\n\n".join(lines) if lines else "📋 No active ads."
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+        await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    except Exception:
+        log.exception("on_admin_ads failed")
+
+
+@router.callback_query(F.data.startswith("admin_del_ad_"))
+async def on_admin_del_ad(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        try:
+            ad_id = int(callback.data.replace("admin_del_ad_", "").strip())
+        except ValueError:
+            return
+        await admin_delete_ad(ad_id)
+        log.info("ADMIN: deleted ad %s", ad_id)
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_ADMIN_MENU, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_admin_del_ad failed")
+
+
+@router.callback_query(F.data == "admin_clear")
+async def on_admin_clear(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        await callback.message.edit_text(
+            "🗑️ Clear database?\n\nThis will delete all ads and relay sessions. Users are kept. Confirm?",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="Yes, clear all", callback_data="admin_clear_confirm")],
+                    [InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")],
+                ]
+            ),
+        )
+    except Exception:
+        log.exception("on_admin_clear failed")
+
+
+@router.callback_query(F.data == "admin_clear_confirm")
+async def on_admin_clear_confirm(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        await admin_clear_ads_and_relays()
+        log.info("ADMIN: cleared database (ads and relay sessions)")
+        await callback.message.edit_text("Done. All ads and relay sessions deleted.", reply_markup=_admin_back_keyboard())
+    except Exception:
+        log.exception("on_admin_clear_confirm failed")
+
+
+@router.callback_query(F.data == "admin_stats")
+async def on_admin_stats(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        total_users = len(await get_all_users())
+        total_ads = await get_ads_count()
+        active_relays = await count_active_relay_sessions()
+        text = f"📊 Stats\n\nTotal users: {total_users}\nActive ads: {total_ads}\nActive relay sessions: {active_relays}"
+        await callback.message.edit_text(text, reply_markup=_admin_back_keyboard())
+    except Exception:
+        log.exception("on_admin_stats failed")
 
 
 @router.callback_query(F.data == "my_chats")
@@ -1095,7 +1335,7 @@ async def on_relay_stop(callback: CallbackQuery, state: FSMContext):
             chat_ended = await translate_to("Chat ended.", lang_name)
             menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
             override = f"{chat_ended}\n\n{menu_text}"
-            await set_state(bot, uid, USER_STATE_MAIN_MENU, override_text=override, override_kb=main_menu_keyboard(lang))
+            await set_state(bot, uid, USER_STATE_MAIN_MENU, override_text=override, override_kb=main_menu_keyboard(lang, uid))
     except Exception:
         log.exception("on_relay_stop failed")
 
@@ -1126,10 +1366,25 @@ async def on_text_message(message: Message):
             proc_msg = await bot.send_message(chat_id, processing)
             lang = await get_user_language(user_id)
             raw = (message.text or "").strip()
+            approved, reject_reason = await moderate_content(raw)
+            if not approved:
+                log.info("MODERATION: ad REJECTED - %s", reject_reason or "")
+                try:
+                    await proc_msg.delete()
+                except Exception:
+                    pass
+                polite = await translate_to("Your ad could not be published.", LANGUAGES.get(lang, "Other"))
+                reason_t = await translate_to(reject_reason or "Content not allowed", LANGUAGES.get(lang, "Other"))
+                await set_state(
+                    bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id,
+                    override_text=f"❌ {polite}\n\n{reason_t}", override_kb=main_menu_keyboard(lang, user_id),
+                )
+                return
             author_name = message.from_user.full_name or message.from_user.username or str(user_id)
             save_task = save_ad(user_id, lang, raw, author_name, ad_type="OTHER")
             classify_task = classify_ad_type(raw)
             ad_id, detected_type = await asyncio.gather(save_task, classify_task)
+            log.info("MODERATION: ad %s APPROVED", ad_id)
             await update_ad_type(ad_id, detected_type)
             formatted = _format_user_text(raw)
             confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
@@ -1161,6 +1416,19 @@ async def on_text_message(message: Message):
             proc_msg = await bot.send_message(chat_id, "⏳")
             from_name = message.from_user.first_name or message.from_user.username or str(user_id)
             original = message.text or ""
+            approved, reject_reason = await moderate_content(original)
+            if not approved:
+                log.info("MODERATION: message REJECTED - %s", reject_reason or "")
+                try:
+                    await proc_msg.delete()
+                except Exception:
+                    pass
+                my_lang = await get_user_language(user_id)
+                prefix = await translate_to("Message not sent:", LANGUAGES.get(my_lang, "Other"))
+                reason_t = await translate_to(reject_reason or "Content not allowed", LANGUAGES.get(my_lang, "Other"))
+                await bot.send_message(chat_id, f"❌ {prefix} {reason_t}")
+                return
+            log.info("MODERATION: message APPROVED (relay_id=%s)", session["id"])
             await relay_add_message(session["id"], user_id, from_name, original)
             other_id = await relay_get_other_user(session, user_id)
             other_lang = await get_user_language(other_id)

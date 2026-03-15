@@ -8,6 +8,19 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 DB_PATH = os.getenv("DB_PATH", "vapenka24.db")
 
+
+def _admin_user_id() -> int | None:
+    raw = os.getenv("ADMIN_USER_ID", "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+ADMIN_USER_ID = _admin_user_id()
+
 LANGUAGES = {
     "sk": "Slovak",
     "uz": "Uzbek",

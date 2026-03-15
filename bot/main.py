@@ -113,6 +113,11 @@ async def init_db():
             await db.commit()
         except aiosqlite.OperationalError:
             pass
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
         await db.execute(
             """CREATE TABLE IF NOT EXISTS relay_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
