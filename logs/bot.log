@@ -128,3 +128,83 @@ aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: text 
 2026-03-15 01:55:23 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
 2026-03-15 01:55:25 | INFO | User 5121687297 (Slovak) chose language
 2026-03-15 01:55:26 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 02:02:39 | INFO | User 7509358328 started bot
+2026-03-15 02:02:39 | INFO | User 7509358328 started bot
+2026-03-15 02:02:39 | INFO | User 7509358328 started bot
+2026-03-15 02:02:42 | ERROR | on_back_to_menu failed
+Traceback (most recent call last):
+  File "C:\Users\user\Documents\vapenka24\bot\handlers\start.py", line 519, in on_back_to_menu
+    await callback.answer()
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\methods\base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 488, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\aiohttp.py", line 189, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+2026-03-15 02:02:42 | ERROR | reply_ad failed
+Traceback (most recent call last):
+  File "C:\Users\user\Documents\vapenka24\bot\handlers\start.py", line 612, in on_reply_ad
+    await callback.answer()
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\methods\base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 488, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\aiohttp.py", line 189, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+2026-03-15 02:02:42 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 02:02:42 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 02:02:42 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 02:02:43 | INFO | Relay message forwarded: from=5121687297 to=7509358328, original=Čo máte na predaj? Povedzte prosím!, translated=Що у вас на продаж? Будь ласка, скажіть!
+2026-03-15 02:03:30 | INFO | User 5121687297 started bot
+2026-03-15 02:03:30 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 02:03:34 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 02:03:36 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 02:03:51 | INFO | User 7509358328 started bot
+2026-03-15 02:03:51 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 02:03:52 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 02:03:54 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 02:04:13 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 02:04:13 | INFO | Relay session started: session_id=2, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 02:04:33 | INFO | Relay session ended: session_id=2, user_a=5121687297, user_b=7509358328
+2026-03-15 02:04:35 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 02:04:39 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 02:04:39 | INFO | Relay session started: session_id=3, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 02:06:30 | INFO | User 7509358328 started bot
+2026-03-15 02:06:38 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 02:06:44 | INFO | User 5121687297 started bot
+2026-03-15 02:06:46 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 02:07:21 | INFO | User 7509358328 (Ukrainian) posted ad: Hello!
+2026-03-15 02:07:36 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 02:07:47 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 02:07:52 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 02:07:52 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 02:08:22 | INFO | Relay message forwarded: from=5121687297 to=7509358328, original=Máte niečo na predaj?, translated=Ви маєте щось на продаж?
+2026-03-15 02:23:40 | INFO | User 5121687297 started bot
+2026-03-15 02:23:40 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 02:23:42 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 02:23:45 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 02:23:55 | INFO | User 7509358328 started bot
+2026-03-15 02:23:55 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 02:23:56 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 02:23:58 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 02:24:11 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
+2026-03-15 02:24:12 | INFO | Relay session started: session_id=2, user_a=5121687297, user_b=7509358328, ad_id=1
+2026-03-15 02:24:39 | INFO | Relay message forwarded: from=5121687297 to=7509358328, original=Máte niečo na predaj?, translated=У вас є щось на продаж?

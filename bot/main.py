@@ -64,12 +64,18 @@ async def init_db():
                 user_b INTEGER NOT NULL,
                 ad_id INTEGER NOT NULL,
                 viewer_name TEXT,
+                author_joined INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (ad_id) REFERENCES ads(id)
             )"""
         )
         try:
             await db.execute("ALTER TABLE relay_sessions ADD COLUMN viewer_name TEXT")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
+        try:
+            await db.execute("ALTER TABLE relay_sessions ADD COLUMN author_joined INTEGER NOT NULL DEFAULT 0")
             await db.commit()
         except aiosqlite.OperationalError:
             pass
