@@ -104,6 +104,16 @@ async def init_db():
         except aiosqlite.OperationalError:
             pass
         try:
+            await db.execute("ALTER TABLE ads ADD COLUMN photo_id TEXT")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN pending_ad_id INTEGER")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
+        try:
             await db.execute("UPDATE ads SET type = 'SEEK' WHERE type = 'BUY'")
             await db.commit()
         except aiosqlite.OperationalError:

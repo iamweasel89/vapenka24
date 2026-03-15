@@ -117,6 +117,17 @@ CANCEL_TEXTS = {
     "other": "Cancel",
 }
 
+ADD_PHOTO_PROMPT = {
+    "sk": "Pridať fotku? (voliteľné)",
+    "uz": "Foto qo'shasizmi? (ixtiyoriy)",
+    "tl": "Magdagdag ng larawan? (opsyonal)",
+    "uk": "Додати фото? (необов'язково)",
+    "other": "Add a photo? (optional)",
+}
+ADD_PHOTO_BTN = {"sk": "📷 Pridať fotku", "uz": "📷 Foto qo'shish", "tl": "📷 Magdagdag ng larawan", "uk": "📷 Додати фото", "other": "📷 Add photo"}
+SKIP_PHOTO_BTN = {"sk": "⏭️ Preskočiť", "uz": "⏭️ O'tkazish", "tl": "⏭️ Laktawan", "uk": "⏭️ Пропустити", "other": "⏭️ Skip"}
+SEND_PHOTO_NOW = {"sk": "Pošlite fotku.", "uz": "Fotoni yuboring.", "tl": "Magpadala ng larawan.", "uk": "Надішліть фото.", "other": "Send your photo now."}
+
 WRITE_TO_AUTHOR_TEXTS = {
     "sk": "✉️ Napísať autorovi",
     "uz": "✉️ Muallifga yozish",
@@ -301,6 +312,7 @@ async def get_user_language(user_id: int) -> str:
 USER_STATE_MAIN_MENU = "MAIN_MENU"
 USER_STATE_VIEWING_ADS = "VIEWING_ADS"
 USER_STATE_POSTING_AD = "POSTING_AD"
+USER_STATE_POSTING_AD_PHOTO = "POSTING_AD_PHOTO"
 USER_STATE_MY_CHATS = "MY_CHATS"
 USER_STATE_IN_RELAY = "IN_RELAY"
 USER_STATE_ADMIN_MENU = "ADMIN_MENU"
@@ -370,6 +382,32 @@ async def update_ad_type(ad_id: int, ad_type: str):
         await db.commit()
 
 
+async def update_ad_photo(ad_id: int, photo_id: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE ads SET photo_id = ? WHERE id = ?", (photo_id, ad_id))
+        await db.commit()
+
+
+async def get_user_pending_ad_id(user_id: int) -> int | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT pending_ad_id FROM users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            if row and row[0] is not None:
+                return int(row[0])
+            return None
+
+
+async def set_user_pending_ad_id(user_id: int, ad_id: int | None) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET pending_ad_id = ? WHERE user_id = ?",
+            (ad_id, user_id),
+        )
+        await db.commit()
+
+
 async def get_ads_count(type_filter: str | None = None) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         q = "SELECT COUNT(*) FROM ads WHERE expires_at > datetime('now')"
@@ -385,7 +423,7 @@ async def get_ads_count(type_filter: str | None = None) -> int:
 async def get_last_ads(limit: int = 10, offset: int = 0, type_filter: str | None = None):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        q = """SELECT id, user_id, language, content, author_name, type, created_at, expires_at
+        q = """SELECT id, user_id, language, content, author_name, type, created_at, expires_at, photo_id
                FROM ads WHERE expires_at > datetime('now')"""
         params = []
         if type_filter and type_filter != "ALL":
@@ -401,7 +439,7 @@ async def get_ad_by_id(ad_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, user_id, language, content, author_name, type FROM ads WHERE id = ?",
+            "SELECT id, user_id, language, content, author_name, type, photo_id FROM ads WHERE id = ?",
             (ad_id,),
         ) as cur:
             row = await cur.fetchone()
@@ -798,7 +836,12 @@ async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
         ad_id = int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0)
         is_last = i == len(ads) - 1
         kb = view_ads_last_ad_keyboard(viewer_lang, ad_id) if is_last else write_to_author_keyboard(viewer_lang, ad_id)
-        sent = await bot.send_message(chat_id, text, reply_markup=kb)
+        photo_id = ad.get("photo_id") if isinstance(ad, dict) else getattr(ad, "photo_id", None)
+        if photo_id and str(photo_id).strip():
+            caption = text[:1024] if len(text) > 1024 else text
+            sent = await bot.send_photo(chat_id, photo=photo_id, caption=caption, reply_markup=kb)
+        else:
+            sent = await bot.send_message(chat_id, text, reply_markup=kb)
         await view_ads_add_message(user_id, chat_id, sent.message_id)
         if is_last:
             await save_user_message(user_id, chat_id, sent.message_id)
@@ -1028,6 +1071,42 @@ async def on_ad_type_change(callback: CallbackQuery):
         await callback.message.edit_text(select_t, reply_markup=kb)
     except Exception:
         log.exception("on_ad_type_change failed")
+
+
+@router.callback_query(F.data == "ad_photo_skip")
+async def on_ad_photo_skip(callback: CallbackQuery):
+    """User skipped photo -> show ad confirmation (type correct/change)."""
+    try:
+        await callback.answer()
+        user_id = callback.from_user.id
+        ad_id = await get_user_pending_ad_id(user_id)
+        if ad_id is None:
+            await set_state(callback.bot, user_id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id)
+            return
+        lang = await get_user_language(user_id)
+        result_text, confirm_kb = await _build_ad_confirmation(ad_id, lang)
+        await callback.message.edit_text(result_text, reply_markup=confirm_kb)
+        await set_user_pending_ad_id(user_id, None)
+        await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+        await save_user_message(user_id, callback.message.chat.id, callback.message.message_id)
+    except Exception:
+        log.exception("on_ad_photo_skip failed")
+
+
+@router.callback_query(F.data == "ad_photo_add")
+async def on_ad_photo_add(callback: CallbackQuery):
+    """User chose to add photo -> ask them to send it."""
+    try:
+        await callback.answer()
+        user_id = callback.from_user.id
+        if await get_user_state(user_id) != USER_STATE_POSTING_AD_PHOTO:
+            return
+        lang = await get_user_language(user_id)
+        send_photo_t = SEND_PHOTO_NOW.get(lang, SEND_PHOTO_NOW["other"])
+        await callback.message.edit_text(send_photo_t)
+        await save_user_message(user_id, callback.message.chat.id, callback.message.message_id)
+    except Exception:
+        log.exception("on_ad_photo_add failed")
 
 
 @router.callback_query(F.data.startswith("set_type_"))
@@ -1536,6 +1615,28 @@ def _format_user_text(raw: str) -> str:
     return text[:4000] if len(text) > 4000 else text
 
 
+async def _build_ad_confirmation(ad_id: int, lang: str) -> tuple[str, InlineKeyboardMarkup]:
+    """Build confirmation text and keyboard for a published ad (after Skip or Add photo)."""
+    ad = await get_ad_by_id(ad_id)
+    if not ad:
+        confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
+        return confirm, InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=BACK_TEXTS.get(lang, "Back"), callback_data="ad_type_ok")]])
+    formatted = _format_user_text(ad.get("content") or "")
+    detected_type = ad.get("type") or "OTHER"
+    type_label = _ad_type_label(detected_type, lang)
+    confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
+    result_text = f"✅ {confirm}\n\n🏷 {await translate_to('Detected type:', LANGUAGES.get(lang, 'Other'))} {type_label}\n\n{formatted}"
+    correct_t = CONFIRM_TYPE_CORRECT.get(lang, CONFIRM_TYPE_CORRECT["other"])
+    change_t = CONFIRM_TYPE_CHANGE.get(lang, CONFIRM_TYPE_CHANGE["other"])
+    confirm_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=correct_t, callback_data="ad_type_ok")],
+            [InlineKeyboardButton(text=change_t, callback_data=f"ad_type_change_{ad_id}")],
+        ]
+    )
+    return result_text, confirm_kb
+
+
 @router.message(F.text)
 async def on_text_message(message: Message):
     """Single handler for all text: delete user message, show ⏳, then process and show result."""
@@ -1548,6 +1649,16 @@ async def on_text_message(message: Message):
         except Exception:
             pass
         state = await get_user_state(user_id)
+
+        if state == USER_STATE_POSTING_AD_PHOTO:
+            try:
+                await message.delete()
+            except Exception:
+                pass
+            lang = await get_user_language(user_id)
+            send_photo_t = SEND_PHOTO_NOW.get(lang, SEND_PHOTO_NOW["other"])
+            await bot.send_message(chat_id, send_photo_t)
+            return
 
         if state == USER_STATE_POSTING_AD:
             processing = await translate_to("⏳ Publishing...", LANGUAGES.get(await get_user_language(user_id), "Other"))
@@ -1574,37 +1685,6 @@ async def on_text_message(message: Message):
             ad_id, detected_type = await asyncio.gather(save_task, classify_task)
             log.info("MODERATION: ad %s APPROVED", ad_id)
             await update_ad_type(ad_id, detected_type)
-            formatted = _format_user_text(raw)
-            confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
-            type_label = _ad_type_label(detected_type, lang)
-            result_text = f"✅ {confirm}\n\n🏷 {await translate_to('Detected type:', LANGUAGES.get(lang, 'Other'))} {type_label}\n\n{formatted}"
-            correct_t = CONFIRM_TYPE_CORRECT.get(lang, CONFIRM_TYPE_CORRECT["other"])
-            change_t = CONFIRM_TYPE_CHANGE.get(lang, CONFIRM_TYPE_CHANGE["other"])
-            confirm_kb = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text=correct_t, callback_data="ad_type_ok")],
-                    [InlineKeyboardButton(text=change_t, callback_data=f"ad_type_change_{ad_id}")],
-                ]
-            )
-            prompt_chat_id, prompt_msg_id = await get_user_message_ids(user_id)
-            if prompt_chat_id and prompt_msg_id and prompt_msg_id != proc_msg.message_id:
-                try:
-                    await bot.delete_message(chat_id=prompt_chat_id, message_id=prompt_msg_id)
-                except Exception:
-                    pass
-            try:
-                await proc_msg.edit_text(result_text, reply_markup=confirm_kb)
-            except Exception:
-                sent = await bot.send_message(chat_id, result_text, reply_markup=confirm_kb)
-                try:
-                    await proc_msg.delete()
-                except Exception:
-                    pass
-                await save_user_message(user_id, chat_id, sent.message_id)
-                await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
-                return
-            await save_user_message(user_id, chat_id, proc_msg.message_id)
-            await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
             if verdict == "SUSPICIOUS":
                 log.info("MODERATION: ad %s SUSPICIOUS - %s", ad_id, reason or "")
                 await insert_suspicious_ad(ad_id)
@@ -1615,6 +1695,32 @@ async def on_text_message(message: Message):
                         "⚠️ New suspicious ad requires review",
                     )
                     await update_suspicious_notification(ad_id, admin_chat_id, sent.message_id)
+            add_photo_prompt = ADD_PHOTO_PROMPT.get(lang, ADD_PHOTO_PROMPT["other"])
+            add_photo_kb = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=ADD_PHOTO_BTN.get(lang, ADD_PHOTO_BTN["other"]), callback_data="ad_photo_add")],
+                    [InlineKeyboardButton(text=SKIP_PHOTO_BTN.get(lang, SKIP_PHOTO_BTN["other"]), callback_data="ad_photo_skip")],
+                ]
+            )
+            prompt_chat_id, prompt_msg_id = await get_user_message_ids(user_id)
+            if prompt_chat_id and prompt_msg_id and prompt_msg_id != proc_msg.message_id:
+                try:
+                    await bot.delete_message(chat_id=prompt_chat_id, message_id=prompt_msg_id)
+                except Exception:
+                    pass
+            try:
+                await proc_msg.edit_text(add_photo_prompt, reply_markup=add_photo_kb)
+            except Exception:
+                sent = await bot.send_message(chat_id, add_photo_prompt, reply_markup=add_photo_kb)
+                try:
+                    await proc_msg.delete()
+                except Exception:
+                    pass
+                await save_user_message(user_id, chat_id, sent.message_id)
+            else:
+                await save_user_message(user_id, chat_id, proc_msg.message_id)
+            await set_user_state_db(user_id, USER_STATE_POSTING_AD_PHOTO)
+            await set_user_pending_ad_id(user_id, ad_id)
             return
         if state == USER_STATE_IN_RELAY:
             relay_id = await get_user_current_relay_id(user_id)
@@ -1705,3 +1811,49 @@ async def on_text_message(message: Message):
                 pass
     except Exception:
         log.exception("on_text_message failed")
+
+
+@router.message(F.photo)
+async def on_photo_message(message: Message):
+    """Handle photo when user is in POSTING_AD_PHOTO (optional ad photo)."""
+    try:
+        user_id = message.from_user.id
+        chat_id = message.chat.id
+        bot = message.bot
+        state = await get_user_state(user_id)
+        if state != USER_STATE_POSTING_AD_PHOTO:
+            return
+        ad_id = await get_user_pending_ad_id(user_id)
+        if ad_id is None:
+            return
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        photo = message.photo
+        file_id = photo[-1].file_id if photo else None
+        if not file_id:
+            return
+        await update_ad_photo(ad_id, file_id)
+        lang = await get_user_language(user_id)
+        result_text, confirm_kb = await _build_ad_confirmation(ad_id, lang)
+        await set_user_pending_ad_id(user_id, None)
+        await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+        prompt_chat_id, prompt_msg_id = await get_user_message_ids(user_id)
+        if prompt_chat_id and prompt_msg_id:
+            try:
+                await bot.edit_message_text(
+                    chat_id=prompt_chat_id,
+                    message_id=prompt_msg_id,
+                    text=result_text,
+                    reply_markup=confirm_kb,
+                )
+                await save_user_message(user_id, prompt_chat_id, prompt_msg_id)
+            except Exception:
+                sent = await bot.send_message(chat_id, result_text, reply_markup=confirm_kb)
+                await save_user_message(user_id, chat_id, sent.message_id)
+        else:
+            sent = await bot.send_message(chat_id, result_text, reply_markup=confirm_kb)
+            await save_user_message(user_id, chat_id, sent.message_id)
+    except Exception:
+        log.exception("on_photo_message failed")
