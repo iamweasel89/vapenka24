@@ -21,7 +21,9 @@ MAIN_MENU_TEXTS = {
     "uz": "Asosiy menyu",
     "tl": "Pangunahing menu",
     "uk": "Головне меню",
-    "other": "Main menu",
+    "ro": "Meniu principal",
+    "en": "Main menu",
+    "hu": "Főmenü",
 }
 
 POST_AD_TEXTS = {
@@ -29,7 +31,9 @@ POST_AD_TEXTS = {
     "uz": "E'lon joylash",
     "tl": "Mag-post ng ad",
     "uk": "Опублікувати оголошення",
-    "other": "Post ad",
+    "ro": "Publică anunț",
+    "en": "Post ad",
+    "hu": "Hirdetés feladása",
 }
 
 VIEW_ADS_TEXTS = {
@@ -37,7 +41,9 @@ VIEW_ADS_TEXTS = {
     "uz": "E'lonlarni ko'rish",
     "tl": "Tingnan ang mga ad",
     "uk": "Переглянути оголошення",
-    "other": "View ads",
+    "ro": "Vezi anunțurile",
+    "en": "View ads",
+    "hu": "Hirdetések megtekintése",
 }
 
 MY_CHATS_TEXTS = {
@@ -45,7 +51,9 @@ MY_CHATS_TEXTS = {
     "uz": "Mening chatlarim",
     "tl": "Aking mga chat",
     "uk": "Мої чати",
-    "other": "My chats",
+    "ro": "Conversațiile mele",
+    "en": "My chats",
+    "hu": "Chatjeim",
 }
 
 NO_CHATS_TEXTS = {
@@ -53,7 +61,9 @@ NO_CHATS_TEXTS = {
     "uz": "Hozircha faol chatlar yo'q.",
     "tl": "Walang aktibong mga chat pa.",
     "uk": "Поки немає активних чатів.",
-    "other": "No active chats yet.",
+    "ro": "Nicio conversație activă încă.",
+    "en": "No active chats yet.",
+    "hu": "Még nincs aktív csevegés.",
 }
 
 BACK_TO_CHATS_TEXTS = {
@@ -61,28 +71,32 @@ BACK_TO_CHATS_TEXTS = {
     "uz": "🔙 Chatlarga qaytish",
     "tl": "🔙 Bumalik sa mga chat",
     "uk": "🔙 Назад до чатів",
-    "other": "🔙 Back to chats",
+    "ro": "🔙 Înapoi la chat",
+    "en": "🔙 Back to chats",
+    "hu": "🔙 Vissza a chathez",
 }
 
-# Ad type labels for confirmation and view ads — all LANGUAGES keys (sk, uz, tl, uk, ro, en, hu, other)
-TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "ro": "Vând", "en": "Selling", "hu": "Eladó", "other": "Selling"}
-TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "ro": "Caut", "en": "Looking for", "hu": "Keresek", "other": "Looking for"}
-TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "ro": "Dau gratuit", "en": "Giving away", "hu": "Ingyen adok", "other": "Giving away"}
-TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "ro": "Altele", "en": "Other", "hu": "Egyéb", "other": "Other"}
+# Ad type labels for confirmation and view ads — all LANGUAGES keys (sk, uz, tl, uk, ro, en, hu)
+TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "ro": "Vând", "en": "Selling", "hu": "Eladó"}
+TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "ro": "Caut", "en": "Looking for", "hu": "Keresek"}
+TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "ro": "Dau gratuit", "en": "Giving away", "hu": "Ingyen adok"}
+TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "ro": "Altele", "en": "Other", "hu": "Egyéb"}
 TYPE_LABELS = {"SELL": TYPE_LABEL_SELL, "SEEK": TYPE_LABEL_SEEK, "GIVE": TYPE_LABEL_GIVE, "OTHER": TYPE_LABEL_OTHER}
 
-CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "ro": "✅ Corect", "en": "✅ Correct", "hu": "✅ Helyes", "other": "✅ Correct"}
-CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "ro": "✏️ Schimbă tipul", "en": "✏️ Change type", "hu": "✏️ Típus módosítása", "other": "✏️ Change type"}
+CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "ro": "✅ Corect", "en": "✅ Correct", "hu": "✅ Helyes"}
+CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "ro": "✏️ Schimbă tipul", "en": "✏️ Change type", "hu": "✏️ Típus módosítása"}
 
-FILTER_BTN_TEXTS = {"sk": "🔽 Filter", "uz": "🔽 Filtr", "tl": "🔽 Filter", "uk": "🔽 Фільтр", "other": "🔽 Filter"}
-FILTER_ALL_TEXTS = {"sk": "Všetko", "uz": "Hammasi", "tl": "All", "uk": "Все", "other": "All"}
+FILTER_BTN_TEXTS = {"sk": "🔽 Filter", "uz": "🔽 Filtr", "tl": "🔽 Filter", "uk": "🔽 Фільтр", "ro": "🔽 Filtru", "en": "🔽 Filter", "hu": "🔽 Szűrő"}
+FILTER_ALL_TEXTS = {"sk": "Všetko", "uz": "Hammasi", "tl": "All", "uk": "Все", "ro": "Toate", "en": "All", "hu": "Összes"}
 
 ENTER_AD_TEXT = {
     "sk": "Zadajte text inzerátu:",
     "uz": "E'lon matnini kiriting:",
     "tl": "Ilagay ang teksto ng ad:",
     "uk": "Введіть текст оголошення:",
-    "other": "Enter ad text:",
+    "ro": "Introdu textul anunțului:",
+    "en": "Enter ad text:",
+    "hu": "Add meg a hirdetés szövegét:",
 }
 
 AD_POSTED = {
@@ -90,7 +104,9 @@ AD_POSTED = {
     "uz": "E'lon joylandi!",
     "tl": "Na-post na ang ad!",
     "uk": "Оголошення опубліковано!",
-    "other": "Ad posted!",
+    "ro": "Anunț publicat!",
+    "en": "Ad posted!",
+    "hu": "Hirdetés közzétéve!",
 }
 
 NO_ADS = {
@@ -98,7 +114,9 @@ NO_ADS = {
     "uz": "Hozircha e'lonlar yo'q.",
     "tl": "Walang mga ad pa.",
     "uk": "Поки немає оголошень.",
-    "other": "No ads yet.",
+    "ro": "Nicio anunț încă.",
+    "en": "No ads yet.",
+    "hu": "Még nincsenek hirdetések.",
 }
 
 BACK_TEXTS = {
@@ -106,7 +124,9 @@ BACK_TEXTS = {
     "uz": "← Orqaga",
     "tl": "← Bumalik",
     "uk": "← Назад",
-    "other": "← Back",
+    "ro": "← Înapoi",
+    "en": "← Back",
+    "hu": "← Vissza",
 }
 
 CANCEL_TEXTS = {
@@ -114,7 +134,9 @@ CANCEL_TEXTS = {
     "uz": "Bekor qilish",
     "tl": "Kanselahin",
     "uk": "Скасувати",
-    "other": "Cancel",
+    "ro": "Anulare",
+    "en": "Cancel",
+    "hu": "Mégse",
 }
 
 ADD_PHOTO_PROMPT = {
@@ -122,28 +144,34 @@ ADD_PHOTO_PROMPT = {
     "uz": "Foto qo'shasizmi? (ixtiyoriy)",
     "tl": "Magdagdag ng larawan? (opsyonal)",
     "uk": "Додати фото? (необов'язково)",
-    "other": "Add a photo? (optional)",
+    "ro": "Adaugi o poză? (opțional)",
+    "en": "Add a photo? (optional)",
+    "hu": "Fénykép hozzáadása? (opcionális)",
 }
-ADD_PHOTO_BTN = {"sk": "📷 Pridať fotku", "uz": "📷 Foto qo'shish", "tl": "📷 Magdagdag ng larawan", "uk": "📷 Додати фото", "other": "📷 Add photo"}
-SKIP_PHOTO_BTN = {"sk": "⏭️ Preskočiť", "uz": "⏭️ O'tkazish", "tl": "⏭️ Laktawan", "uk": "⏭️ Пропустити", "other": "⏭️ Skip"}
-SEND_PHOTO_NOW = {"sk": "Pošlite fotku.", "uz": "Fotoni yuboring.", "tl": "Magpadala ng larawan.", "uk": "Надішліть фото.", "other": "Send your photo now."}
+ADD_PHOTO_BTN = {"sk": "📷 Pridať fotku", "uz": "📷 Foto qo'shish", "tl": "📷 Magdagdag ng larawan", "uk": "📷 Додати фото", "ro": "📷 Adaugă poză", "en": "📷 Add photo", "hu": "📷 Fénykép hozzáadása"}
+SKIP_PHOTO_BTN = {"sk": "⏭️ Preskočiť", "uz": "⏭️ O'tkazish", "tl": "⏭️ Laktawan", "uk": "⏭️ Пропустити", "ro": "⏭️ Omite", "en": "⏭️ Skip", "hu": "⏭️ Kihagyás"}
+SEND_PHOTO_NOW = {"sk": "Pošlite fotku.", "uz": "Fotoni yuboring.", "tl": "Magpadala ng larawan.", "uk": "Надішліть фото.", "ro": "Trimite fotografia.", "en": "Send your photo now.", "hu": "Küldd el a fényképet."}
 
 WRITE_TO_AUTHOR_TEXTS = {
     "sk": "✉️ Napísať autorovi",
     "uz": "✉️ Muallifga yozish",
     "tl": "✉️ Sumulat sa may-akda",
     "uk": "✉️ Написати автору",
-    "other": "✉️ Write to author",
+    "ro": "✉️ Scrie autorului",
+    "en": "✉️ Write to author",
+    "hu": "✉️ Írás a szerzőnek",
 }
 
-BACK_EMOJI_TEXTS = {"sk": "🔙 Späť", "uz": "🔙 Orqaga", "tl": "🔙 Bumalik", "uk": "🔙 Назад", "other": "🔙 Back"}
+BACK_EMOJI_TEXTS = {"sk": "🔙 Späť", "uz": "🔙 Orqaga", "tl": "🔙 Bumalik", "uk": "🔙 Назад", "ro": "🔙 Înapoi", "en": "🔙 Back", "hu": "🔙 Vissza"}
 
 RELAY_INTERESTED_TEXTS = {
     "sk": "Niekto má záujem o váš inzerát:",
     "uz": "Kimdir sizning e'loningizga qiziqyapti:",
     "tl": "May interesado sa iyong ad:",
     "uk": "Хтось зацікавлений у вашому оголошенні:",
-    "other": "Someone is interested in your ad:",
+    "ro": "Cineva e interesat de anunțul tău:",
+    "en": "Someone is interested in your ad:",
+    "hu": "Valaki érdeklődik a hirdetésed iránt:",
 }
 
 def _row_to_dict(row) -> dict | None:
@@ -153,26 +181,30 @@ def _row_to_dict(row) -> dict | None:
         return {k: row[k] for k in row.keys()}
     except Exception:
         return dict(row) if row else None
-RELAY_REPLY_BTN_TEXTS = {"sk": "✉️ Odpovedať", "uz": "✉️ Javob berish", "tl": "✉️ Sumagot", "uk": "✉️ Відповісти", "other": "✉️ Reply"}
+RELAY_REPLY_BTN_TEXTS = {"sk": "✉️ Odpovedať", "uz": "✉️ Javob berish", "tl": "✉️ Sumagot", "uk": "✉️ Відповісти", "ro": "✉️ Răspunde", "en": "✉️ Reply", "hu": "✉️ Válasz"}
 RELAY_CHAT_HEADER_TEXTS = {
     "sk": "Chat k inzerátu. Napíšte správu:",
     "uz": "E'lon bo'yicha chat. Xabar yozing:",
     "tl": "Chat tungkol sa ad. Mag-type ng mensahe:",
     "uk": "Чат щодо оголошення. Напишіть повідомлення:",
-    "other": "Chat about your ad. Type your message:",
+    "ro": "Chat despre anunț. Scrie mesajul:",
+    "en": "Chat about your ad. Type your message:",
+    "hu": "Chat a hirdetésedről. Írd be az üzenetet:",
 }
-RELAY_STOP_TEXTS = {"sk": "🔙 Ukončiť chat", "uz": "🔙 Chatni tugatish", "tl": "🔙 I-stop ang chat", "uk": "🔙 Зупинити чат", "other": "🔙 End chat"}
+RELAY_STOP_TEXTS = {"sk": "🔙 Ukončiť chat", "uz": "🔙 Chatni tugatish", "tl": "🔙 I-stop ang chat", "uk": "🔙 Зупинити чат", "ro": "🔙 Încheie chat", "en": "🔙 End chat", "hu": "🔙 Chat befejezése"}
 
-RELAY_HEADER_CHAT_WITH = {"sk": "💬 Chat s", "uz": "💬 Chat", "tl": "💬 Chat sa", "uk": "💬 Чат з", "other": "💬 Chat with"}
-RELAY_HEADER_ABOUT = {"sk": "O inzeráte:", "uz": "E'lon:", "tl": "Tungkol sa:", "uk": "Про оголошення:", "other": "About:"}
-RELAY_HEADER_TYPE_BELOW = {"sk": "Napíšte správu nižšie:", "uz": "Xabar yozing:", "tl": "Mag-type ng mensahe sa ibaba:", "uk": "Напишіть повідомлення нижче:", "other": "Type your message below:"}
+RELAY_HEADER_CHAT_WITH = {"sk": "💬 Chat s", "uz": "💬 Chat", "tl": "💬 Chat sa", "uk": "💬 Чат з", "ro": "💬 Chat cu", "en": "💬 Chat with", "hu": "💬 Chat"}
+RELAY_HEADER_ABOUT = {"sk": "O inzeráte:", "uz": "E'lon:", "tl": "Tungkol sa:", "uk": "Про оголошення:", "ro": "Despre anunț:", "en": "About:", "hu": "A hirdetésről:"}
+RELAY_HEADER_TYPE_BELOW = {"sk": "Napíšte správu nižšie:", "uz": "Xabar yozing:", "tl": "Mag-type ng mensahe sa ibaba:", "uk": "Напишіть повідомлення нижче:", "ro": "Scrie mesajul mai jos:", "en": "Type your message below:", "hu": "Írd be az üzenetet alább:"}
 
 CONNECTING_TEXTS = {
     "sk": "Pripájam vás s autorom...",
     "uz": "Sizni muallif bilan bog'layapmiz...",
     "tl": "Ikino-connect ka sa may-akda...",
     "uk": "З'єдную з автором...",
-    "other": "Connecting you with the author...",
+    "ro": "Te conectez cu autorul...",
+    "en": "Connecting you with the author...",
+    "hu": "Kapcsolás a szerzővel...",
 }
 
 NEW_MESSAGE_FROM_TEXTS = {
@@ -180,14 +212,18 @@ NEW_MESSAGE_FROM_TEXTS = {
     "uz": "💬 Yangi xabar",
     "tl": "💬 Bagong mensahe mula sa",
     "uk": "💬 Нове повідомлення від",
-    "other": "💬 New message from",
+    "ro": "💬 Mesaj nou de la",
+    "en": "💬 New message from",
+    "hu": "💬 Új üzenet",
 }
 OPEN_CHAT_BTN_TEXTS = {
     "sk": "Otvorit chat",
     "uz": "Chatni ochish",
     "tl": "Buksan ang chat",
     "uk": "Відкрити чат",
-    "other": "Open chat",
+    "ro": "Deschide chat",
+    "en": "Open chat",
+    "hu": "Chat megnyitása",
 }
 
 CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову / Alegeți limba / Válasszon nyelvet:"
@@ -209,7 +245,6 @@ LANG_BUTTON_TEXTS = {
     "ro": "🇷🇴 Romanian",
     "en": "🇬🇧 English",
     "hu": "🇭🇺 Hungarian",
-    "other": "🌐 Other",
 }
 
 
@@ -247,9 +282,9 @@ def lang_keyboard() -> InlineKeyboardMarkup:
 
 def main_menu_keyboard(lang: str, user_id: int | None = None) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=POST_AD_TEXTS[lang], callback_data="post_ad")],
-        [InlineKeyboardButton(text=VIEW_ADS_TEXTS[lang], callback_data="view_ads")],
-        [InlineKeyboardButton(text=MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["other"]), callback_data="my_chats")],
+        [InlineKeyboardButton(text=POST_AD_TEXTS.get(lang, POST_AD_TEXTS["en"]), callback_data="post_ad")],
+        [InlineKeyboardButton(text=VIEW_ADS_TEXTS.get(lang, VIEW_ADS_TEXTS["en"]), callback_data="view_ads")],
+        [InlineKeyboardButton(text=MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["en"]), callback_data="my_chats")],
     ]
     if user_id is not None and ADMIN_USER_ID is not None and user_id == ADMIN_USER_ID:
         rows.append([InlineKeyboardButton(text="⚙️ Admin", callback_data="admin_menu")])
@@ -259,7 +294,7 @@ def main_menu_keyboard(lang: str, user_id: int | None = None) -> InlineKeyboardM
 def back_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=BACK_TEXTS[lang], callback_data="back_to_menu")]
+            [InlineKeyboardButton(text=BACK_TEXTS.get(lang, BACK_TEXTS["en"]), callback_data="back_to_menu")]
         ]
     )
 
@@ -275,7 +310,7 @@ def cancel_keyboard(lang: str) -> InlineKeyboardMarkup:
 async def save_user_message(user_id: int, chat_id: int, message_id: int):
     async with get_pool().acquire() as conn:
         await conn.execute(
-            """INSERT INTO users (user_id, language, chat_id, message_id) VALUES ($1, 'other', $2, $3)
+            """INSERT INTO users (user_id, language, chat_id, message_id) VALUES ($1, 'en', $2, $3)
                ON CONFLICT(user_id) DO UPDATE SET chat_id = EXCLUDED.chat_id, message_id = EXCLUDED.message_id""",
             user_id, chat_id, message_id,
         )
@@ -316,9 +351,9 @@ async def get_user_language(user_id: int) -> str:
             "SELECT language FROM users WHERE user_id = $1", user_id,
         )
         if not row or row["language"] is None:
-            return "other"
+            return "en"
         raw = str(row["language"]).strip().lower()
-        return raw if raw in LANGUAGES else "other"
+        return raw if raw in LANGUAGES else "en"
 
 
 USER_STATE_MAIN_MENU = "MAIN_MENU"
@@ -638,7 +673,7 @@ async def view_ads_get_messages(user_id: int) -> list[tuple[int, int]]:
 
 
 def write_to_author_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
-    write_t = WRITE_TO_AUTHOR_TEXTS.get(lang, WRITE_TO_AUTHOR_TEXTS["other"])
+    write_t = WRITE_TO_AUTHOR_TEXTS.get(lang, WRITE_TO_AUTHOR_TEXTS["en"])
     data = f"{CALLBACK_REPLY_AD_PREFIX}{int(ad_id)}"[:64]  # Telegram limit 64 bytes
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text=write_t, callback_data=data)]]
@@ -646,8 +681,8 @@ def write_to_author_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
 
 
 def view_ads_back_keyboard(lang: str) -> InlineKeyboardMarkup:
-    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
-    filter_t = FILTER_BTN_TEXTS.get(lang, FILTER_BTN_TEXTS["other"])
+    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["en"])
+    filter_t = FILTER_BTN_TEXTS.get(lang, FILTER_BTN_TEXTS["en"])
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=filter_t, callback_data="view_ads_filter_open"), InlineKeyboardButton(text=back_t, callback_data="back_to_menu")],
@@ -657,9 +692,9 @@ def view_ads_back_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 def view_ads_last_ad_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
     """Keyboard for the last ad: Write to author, Filter, Back."""
-    write_t = WRITE_TO_AUTHOR_TEXTS.get(lang, WRITE_TO_AUTHOR_TEXTS["other"])
-    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
-    filter_t = FILTER_BTN_TEXTS.get(lang, FILTER_BTN_TEXTS["other"])
+    write_t = WRITE_TO_AUTHOR_TEXTS.get(lang, WRITE_TO_AUTHOR_TEXTS["en"])
+    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["en"])
+    filter_t = FILTER_BTN_TEXTS.get(lang, FILTER_BTN_TEXTS["en"])
     data = f"{CALLBACK_REPLY_AD_PREFIX}{int(ad_id)}"[:64]
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -670,12 +705,12 @@ def view_ads_last_ad_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
 
 
 def _ad_type_label(ad_type: str, lang: str) -> str:
-    return TYPE_LABELS.get(ad_type or "OTHER", TYPE_LABEL_OTHER).get(lang, TYPE_LABEL_OTHER["other"])
+    return TYPE_LABELS.get(ad_type or "OTHER", TYPE_LABEL_OTHER).get(lang, TYPE_LABEL_OTHER["en"])
 
 
 async def _build_single_ad_text(ad: dict, viewer_lang: str, ad_id: int = 0) -> str:
     """Build ad display text. Always translate to VIEWER's language (source language detected by OpenAI)."""
-    viewer_lang = (viewer_lang or "other").strip() or "other"
+    viewer_lang = (viewer_lang or "en").strip() or "en"
     type_label = _ad_type_label(ad.get("type") or "OTHER", viewer_lang)
     name = ad["author_name"] or "Unknown"
     days_left = _days_left(ad.get("expires_at"))
@@ -779,8 +814,8 @@ async def relay_close(relay_id: int):
 
 
 def relay_keyboard(lang: str, session_id: int) -> InlineKeyboardMarkup:
-    back_chats_t = BACK_TO_CHATS_TEXTS.get(lang, BACK_TO_CHATS_TEXTS["other"])
-    stop_t = RELAY_STOP_TEXTS.get(lang, RELAY_STOP_TEXTS["other"])
+    back_chats_t = BACK_TO_CHATS_TEXTS.get(lang, BACK_TO_CHATS_TEXTS["en"])
+    stop_t = RELAY_STOP_TEXTS.get(lang, RELAY_STOP_TEXTS["en"])
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=back_chats_t, callback_data="back_to_chats")],
@@ -790,9 +825,9 @@ def relay_keyboard(lang: str, session_id: int) -> InlineKeyboardMarkup:
 
 
 def _relay_opening_text(lang: str, other_name: str, ad_preview: str) -> str:
-    chat_with = RELAY_HEADER_CHAT_WITH.get(lang, RELAY_HEADER_CHAT_WITH["other"])
-    about = RELAY_HEADER_ABOUT.get(lang, RELAY_HEADER_ABOUT["other"])
-    type_below = RELAY_HEADER_TYPE_BELOW.get(lang, RELAY_HEADER_TYPE_BELOW["other"])
+    chat_with = RELAY_HEADER_CHAT_WITH.get(lang, RELAY_HEADER_CHAT_WITH["en"])
+    about = RELAY_HEADER_ABOUT.get(lang, RELAY_HEADER_ABOUT["en"])
+    type_below = RELAY_HEADER_TYPE_BELOW.get(lang, RELAY_HEADER_TYPE_BELOW["en"])
     return f"{chat_with} {other_name}\n{about} {ad_preview}\n\n{type_below}"
 
 
@@ -835,7 +870,7 @@ async def _build_relay_ui_text(relay_id: int, for_user_id: int, lang: str, heade
     thread = "\n".join(lines)
     if not header:
         return ad_block + thread
-    header_text = RELAY_CHAT_HEADER_TEXTS.get(lang, RELAY_CHAT_HEADER_TEXTS["other"])
+    header_text = RELAY_CHAT_HEADER_TEXTS.get(lang, RELAY_CHAT_HEADER_TEXTS["en"])
     body = header_text + "\n\n" + thread if thread else header_text + "\n\n"
     return ad_block + body
 
@@ -843,7 +878,7 @@ async def _build_relay_ui_text(relay_id: int, for_user_id: int, lang: str, heade
 async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | None = None, reply_markup=None):
     lang = await get_user_language(user_id)
     if text is None:
-        text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
+        text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["en"])
     if reply_markup is None:
         reply_markup = main_menu_keyboard(lang, user_id)
     sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
@@ -867,7 +902,7 @@ async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
     await view_ads_clear_messages(user_id)
 
     if not ads:
-        msg = NO_ADS.get(viewer_lang, NO_ADS["other"])
+        msg = NO_ADS.get(viewer_lang, NO_ADS["en"])
         sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(viewer_lang))
         await save_user_message(user_id, chat_id, sent.message_id)
         return
@@ -896,7 +931,7 @@ async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
 
 async def _draw_posting_ad(bot: Bot, user_id: int, chat_id: int):
     lang = await get_user_language(user_id)
-    prompt = ENTER_AD_TEXT.get(lang, ENTER_AD_TEXT["other"])
+    prompt = ENTER_AD_TEXT.get(lang, ENTER_AD_TEXT["en"])
     sent = await bot.send_message(chat_id, prompt, reply_markup=cancel_keyboard(lang))
     await save_user_message(user_id, chat_id, sent.message_id)
 
@@ -911,8 +946,8 @@ async def _draw_my_chats(bot: Bot, user_id: int, chat_id: int):
     lang = await get_user_language(user_id)
     sessions = await relay_get_active_sessions_for_user(user_id)
     if not sessions:
-        msg = NO_CHATS_TEXTS.get(lang, NO_CHATS_TEXTS["other"])
-        back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
+        msg = NO_CHATS_TEXTS.get(lang, NO_CHATS_TEXTS["en"])
+        back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["en"])
         sent = await bot.send_message(
             chat_id, msg,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=back_t, callback_data="back_to_menu")]]),
@@ -932,9 +967,9 @@ async def _draw_my_chats(bot: Bot, user_id: int, chat_id: int):
             partner_name = (s.get("viewer_name") or "Someone")[:30]
         chat_btn = f"💬 {partner_name} · {ad_btn_preview}"
         keyboard_buttons.append([InlineKeyboardButton(text=chat_btn, callback_data=f"open_relay_{s['id']}")])
-    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
+    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["en"])
     keyboard_buttons.append([InlineKeyboardButton(text=back_t, callback_data="back_to_menu")])
-    title = MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["other"])
+    title = MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["en"])
     text = title
     sent = await bot.send_message(
         chat_id, text,
@@ -1066,7 +1101,7 @@ async def on_language(callback: CallbackQuery):
         bot = callback.bot
         lang = callback.data.replace("lang_", "")
         if lang not in LANGUAGES:
-            lang = "other"
+            lang = "en"
         await set_user_language(user_id, lang)
         log.info("User %s chose language %s", user_id, lang)
         already_shown = await get_user_welcome_shown(user_id)
@@ -1124,7 +1159,7 @@ async def on_ad_type_ok(callback: CallbackQuery):
         lang = await get_user_language(callback.from_user.id)
         await set_state(
             callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id,
-            override_text=MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"]),
+            override_text=MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["en"]),
             override_kb=main_menu_keyboard(lang, callback.from_user.id),
         )
     except Exception:
@@ -1145,10 +1180,10 @@ async def on_ad_type_change(callback: CallbackQuery):
         select_t = await translate_to("Select type:", LANGUAGES.get(lang, "Other"))
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["other"]), callback_data=f"set_type_{ad_id}_SELL")],
-                [InlineKeyboardButton(text=TYPE_LABEL_SEEK.get(lang, TYPE_LABEL_SEEK["other"]), callback_data=f"set_type_{ad_id}_SEEK")],
-                [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["other"]), callback_data=f"set_type_{ad_id}_GIVE")],
-                [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["other"]), callback_data=f"set_type_{ad_id}_OTHER")],
+                [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["en"]), callback_data=f"set_type_{ad_id}_SELL")],
+                [InlineKeyboardButton(text=TYPE_LABEL_SEEK.get(lang, TYPE_LABEL_SEEK["en"]), callback_data=f"set_type_{ad_id}_SEEK")],
+                [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["en"]), callback_data=f"set_type_{ad_id}_GIVE")],
+                [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["en"]), callback_data=f"set_type_{ad_id}_OTHER")],
             ]
         )
         await callback.message.edit_text(select_t, reply_markup=kb)
@@ -1185,7 +1220,7 @@ async def on_ad_photo_add(callback: CallbackQuery):
         if await get_user_state(user_id) != USER_STATE_POSTING_AD_PHOTO:
             return
         lang = await get_user_language(user_id)
-        send_photo_t = SEND_PHOTO_NOW.get(lang, SEND_PHOTO_NOW["other"])
+        send_photo_t = SEND_PHOTO_NOW.get(lang, SEND_PHOTO_NOW["en"])
         await callback.message.edit_text(send_photo_t)
         await save_user_message(user_id, callback.message.chat.id, callback.message.message_id)
     except Exception:
@@ -1240,14 +1275,14 @@ async def on_view_ads_filter_open(callback: CallbackQuery):
     try:
         await callback.answer()
         lang = await get_user_language(callback.from_user.id)
-        all_t = FILTER_ALL_TEXTS.get(lang, FILTER_ALL_TEXTS["other"])
+        all_t = FILTER_ALL_TEXTS.get(lang, FILTER_ALL_TEXTS["en"])
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=all_t, callback_data="view_ads_filter_ALL")],
-                [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["other"]), callback_data="view_ads_filter_SELL")],
-                [InlineKeyboardButton(text=TYPE_LABEL_SEEK.get(lang, TYPE_LABEL_SEEK["other"]), callback_data="view_ads_filter_SEEK")],
-                [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["other"]), callback_data="view_ads_filter_GIVE")],
-                [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["other"]), callback_data="view_ads_filter_OTHER")],
+                [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["en"]), callback_data="view_ads_filter_SELL")],
+                [InlineKeyboardButton(text=TYPE_LABEL_SEEK.get(lang, TYPE_LABEL_SEEK["en"]), callback_data="view_ads_filter_SEEK")],
+                [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["en"]), callback_data="view_ads_filter_GIVE")],
+                [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["en"]), callback_data="view_ads_filter_OTHER")],
             ]
         )
         filter_title = await translate_to("Filter by type:", LANGUAGES.get(lang, "Other"))
@@ -1297,7 +1332,7 @@ async def on_admin_back_to_menu(callback: CallbackQuery):
         lang = await get_user_language(callback.from_user.id)
         await set_state(
             callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id,
-            override_text=MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"]),
+            override_text=MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["en"]),
             override_kb=main_menu_keyboard(lang, callback.from_user.id),
         )
     except Exception:
@@ -1697,7 +1732,7 @@ async def on_relay_stop(callback: CallbackQuery, state: FSMContext):
             lang = await get_user_language(uid)
             lang_name = LANGUAGES.get(lang, "Other")
             chat_ended = await translate_to("Chat ended.", lang_name)
-            menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
+            menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["en"])
             override = f"{chat_ended}\n\n{menu_text}"
             await set_state(bot, uid, USER_STATE_MAIN_MENU, override_text=override, override_kb=main_menu_keyboard(lang, uid))
     except Exception:
@@ -1723,8 +1758,8 @@ async def _build_ad_confirmation(ad_id: int, lang: str) -> tuple[str, InlineKeyb
     type_label = _ad_type_label(detected_type, lang)
     confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
     result_text = f"✅ {confirm}\n\n🏷 {await translate_to('Detected type:', LANGUAGES.get(lang, 'Other'))} {type_label}\n\n{formatted}"
-    correct_t = CONFIRM_TYPE_CORRECT.get(lang, CONFIRM_TYPE_CORRECT["other"])
-    change_t = CONFIRM_TYPE_CHANGE.get(lang, CONFIRM_TYPE_CHANGE["other"])
+    correct_t = CONFIRM_TYPE_CORRECT.get(lang, CONFIRM_TYPE_CORRECT["en"])
+    change_t = CONFIRM_TYPE_CHANGE.get(lang, CONFIRM_TYPE_CHANGE["en"])
     confirm_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=correct_t, callback_data="ad_type_ok")],
@@ -1753,7 +1788,7 @@ async def on_text_message(message: Message):
             except Exception:
                 pass
             lang = await get_user_language(user_id)
-            send_photo_t = SEND_PHOTO_NOW.get(lang, SEND_PHOTO_NOW["other"])
+            send_photo_t = SEND_PHOTO_NOW.get(lang, SEND_PHOTO_NOW["en"])
             await bot.send_message(chat_id, send_photo_t)
             return
 
@@ -1792,11 +1827,11 @@ async def on_text_message(message: Message):
                         "⚠️ New suspicious ad requires review",
                     )
                     await update_suspicious_notification(ad_id, admin_chat_id, sent.message_id)
-            add_photo_prompt = ADD_PHOTO_PROMPT.get(lang, ADD_PHOTO_PROMPT["other"])
+            add_photo_prompt = ADD_PHOTO_PROMPT.get(lang, ADD_PHOTO_PROMPT["en"])
             add_photo_kb = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text=ADD_PHOTO_BTN.get(lang, ADD_PHOTO_BTN["other"]), callback_data="ad_photo_add")],
-                    [InlineKeyboardButton(text=SKIP_PHOTO_BTN.get(lang, SKIP_PHOTO_BTN["other"]), callback_data="ad_photo_skip")],
+                    [InlineKeyboardButton(text=ADD_PHOTO_BTN.get(lang, ADD_PHOTO_BTN["en"]), callback_data="ad_photo_add")],
+                    [InlineKeyboardButton(text=SKIP_PHOTO_BTN.get(lang, SKIP_PHOTO_BTN["en"]), callback_data="ad_photo_skip")],
                 ]
             )
             prompt_chat_id, prompt_msg_id = await get_user_message_ids(user_id)
@@ -1845,7 +1880,7 @@ async def on_text_message(message: Message):
             await relay_add_message(session["id"], user_id, from_name, original)
             other_id = await relay_get_other_user(session, user_id)
             other_lang = await get_user_language(other_id)
-            other_lang_name = LANGUAGES.get(other_lang, "Other")
+            other_lang_name = LANGUAGES.get(other_lang, LANGUAGES["en"])
             log.info("Relay message forwarded: from=%s to=%s", user_id, other_id)
             my_lang = await get_user_language(user_id)
             text_for_me = await _build_relay_ui_text(session["id"], user_id, my_lang)
@@ -1867,10 +1902,10 @@ async def on_text_message(message: Message):
                         sender_name = (ad.get("author_name") if ad else None) or "Someone"
                     ad_preview = _ad_preview_short(ad.get("content") or "", 120) if ad else ""
                     if ad_preview:
-                        ad_preview = await translate_to(ad_preview, LANGUAGES.get(await get_user_language(other_id), "Other"))
+                        ad_preview = await translate_to(ad_preview, LANGUAGES.get(await get_user_language(other_id), LANGUAGES["en"]))
                     lang_other = await get_user_language(other_id)
-                    label = NEW_MESSAGE_FROM_TEXTS.get(lang_other, NEW_MESSAGE_FROM_TEXTS["other"])
-                    open_btn = OPEN_CHAT_BTN_TEXTS.get(lang_other, OPEN_CHAT_BTN_TEXTS["other"])
+                    label = NEW_MESSAGE_FROM_TEXTS.get(lang_other, NEW_MESSAGE_FROM_TEXTS["en"])
+                    open_btn = OPEN_CHAT_BTN_TEXTS.get(lang_other, OPEN_CHAT_BTN_TEXTS["en"])
                     notification_text = f"{label} {sender_name}"
                     if ad_preview:
                         notification_text += f"\n\n📌 {ad_preview}"

@@ -89,8 +89,7 @@ async def classify_ad_type(ad_text: str) -> str:
 async def translate_to(text: str, language: str) -> str:
     if not OPENAI_API_KEY or not text.strip():
         return text
-    # Avoid "Other" so the model doesn't pick a random language (e.g. Arabic/Spanish)
-    if not language or str(language).strip() == "Other":
+    if not language or not str(language).strip():
         language = "English"
     print(f"DEBUG: translate_to called, target language={language!r}, text_len={len(text)}")
     prompt = f"Translate the following text to {language}. Return only the translated text, nothing else: {text}"

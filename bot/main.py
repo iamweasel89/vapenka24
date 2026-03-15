@@ -19,7 +19,7 @@ async def init_db():
         await conn.execute(
             """CREATE TABLE IF NOT EXISTS users (
                 user_id BIGINT PRIMARY KEY,
-                language TEXT NOT NULL DEFAULT 'other',
+                language TEXT NOT NULL DEFAULT 'en',
                 chat_id BIGINT,
                 message_id BIGINT,
                 state TEXT NOT NULL DEFAULT 'MAIN_MENU',
