@@ -3,18 +3,19 @@ from openai import AsyncOpenAI
 from bot.config import OPENAI_API_KEY
 
 MODERATION_PROMPT = """Is this text appropriate for a residential dormitory bulletin board?
-ALLOW: Normal peer-to-peer trading between neighbors (selling/buying coffee, food, household items, clothes, etc.), giving away items, seeking roommates or services, general commerce between residents.
+APPROVED: All normal peer-to-peer trading — buying/selling everyday items (bikes, furniture, food, clothes, books, electronics, etc.), giving away items, seeking roommates, tutoring, local services. Default to APPROVED for any clear personal ad or straightforward commerce between residents.
 REJECT only if it contains: explicit threats or violence, illegal drugs, adult/sexual services, hate speech.
-Reply with only: APPROVED or REJECTED: [brief reason]"""
+SUSPICIOUS: Only when there are genuine red flags — e.g. deliberately vague "services" or "stuff", unusual requests that suggest code words, or commercial/business offers disguised as personal ads. Do NOT flag normal listings (e.g. "selling my bike", "looking for a chair", "free coffee") as SUSPICIOUS.
+Reply with only: APPROVED or REJECTED: [brief reason] or SUSPICIOUS: [brief reason]"""
 
 
-async def moderate_content(text: str) -> tuple[bool, str | None]:
+async def moderate_content(text: str) -> tuple[str, str | None]:
     """
-    Check content with OpenAI. Returns (approved, reason_if_rejected).
-    On API error, returns (True, None) to allow through.
+    Check content with OpenAI. Returns (verdict, reason) where verdict is APPROVED, REJECTED, or SUSPICIOUS.
+    reason is set for REJECTED and SUSPICIOUS. On API error, returns (APPROVED, None).
     """
     if not OPENAI_API_KEY or not (text or "").strip():
-        return True, None
+        return "APPROVED", None
     try:
         client = AsyncOpenAI(api_key=OPENAI_API_KEY)
         resp = await client.chat.completions.create(
@@ -22,18 +23,26 @@ async def moderate_content(text: str) -> tuple[bool, str | None]:
             messages=[{"role": "user", "content": f"{MODERATION_PROMPT}\n\n{text.strip()}"}],
         )
         if not resp.choices or not resp.choices[0].message.content:
-            return True, None
-        raw = resp.choices[0].message.content.strip().upper()
+            return "APPROVED", None
+        content = resp.choices[0].message.content.strip()
+        raw = content.upper()
         if raw.startswith("REJECTED"):
-            reason = resp.choices[0].message.content.strip()
+            reason = content
             if ":" in reason:
                 reason = reason.split(":", 1)[1].strip()
             else:
                 reason = reason.replace("REJECTED", "").strip() or "Content not allowed"
-            return False, reason[:500]
-        return True, None
+            return "REJECTED", reason[:500]
+        if raw.startswith("SUSPICIOUS"):
+            reason = content
+            if ":" in reason:
+                reason = reason.split(":", 1)[1].strip()
+            else:
+                reason = reason.replace("SUSPICIOUS", "").strip() or "Unusual content"
+            return "SUSPICIOUS", reason[:500]
+        return "APPROVED", None
     except Exception:
-        return True, None
+        return "APPROVED", None
 
 
 AD_TYPES = ("SELL", "SEEK", "GIVE", "OTHER")

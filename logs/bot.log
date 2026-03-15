@@ -435,3 +435,24 @@ sqlite3.OperationalError: no such column: created_at
 2026-03-15 07:02:22 | INFO | User 7509358328 started bot
 2026-03-15 07:02:22 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
 2026-03-15 07:02:24 | INFO | User 7509358328 chose language uk
+2026-03-15 07:15:47 | INFO | User 7509358328 started bot
+2026-03-15 07:15:47 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:15:51 | INFO | User 7509358328 started bot
+2026-03-15 07:15:51 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:15:53 | INFO | User 7509358328 chose language uk
+2026-03-15 07:16:00 | INFO | User 5121687297 started bot
+2026-03-15 07:16:00 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:16:01 | INFO | User 5121687297 chose language sk
+2026-03-15 07:16:32 | INFO | MODERATION: ad REJECTED - Contains illegal drugs.
+2026-03-15 07:17:06 | INFO | MODERATION: ad 4 APPROVED
+2026-03-15 07:17:10 | INFO | MODERATION: ad 4 SUSPICIOUS - The offer is vague and does not provide clear details about the bicycle.
+2026-03-15 07:18:06 | INFO | MODERATION: ad 5 APPROVED
+2026-03-15 07:18:10 | INFO | MODERATION: ad 5 SUSPICIOUS - The phrase "особые услуги" (special services) is vague and could imply adult or sexual services, which may not be appropriate for a dormitory bulletin board.
+2026-03-15 07:27:44 | INFO | User 5121687297 started bot
+2026-03-15 07:27:44 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:27:49 | INFO | User 7509358328 started bot
+2026-03-15 07:27:50 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 07:27:51 | INFO | User 7509358328 chose language uk
+2026-03-15 07:27:57 | INFO | User 5121687297 chose language sk
+2026-03-15 07:28:14 | INFO | MODERATION: ad 6 APPROVED
+2026-03-15 07:29:02 | INFO | MODERATION: ad REJECTED - Contains vague "services" that suggest potential adult/sexual services.

@@ -1192,6 +1192,39 @@ async def on_admin_stats(callback: CallbackQuery):
         log.exception("on_admin_stats failed")
 
 
+@router.callback_query(F.data.startswith("admin_suspicious_remove_"))
+async def on_admin_suspicious_remove(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        try:
+            ad_id = int(callback.data.replace("admin_suspicious_remove_", "").strip())
+        except ValueError:
+            return
+        await admin_delete_ad(ad_id)
+        log.info("ADMIN_MODERATION: ad %s removed by admin", ad_id)
+        await callback.message.edit_text(f"Ad {ad_id} removed by admin.")
+    except Exception:
+        log.exception("on_admin_suspicious_remove failed")
+
+
+@router.callback_query(F.data.startswith("admin_suspicious_keep_"))
+async def on_admin_suspicious_keep(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        try:
+            ad_id = int(callback.data.replace("admin_suspicious_keep_", "").strip())
+        except ValueError:
+            return
+        log.info("ADMIN_MODERATION: ad %s kept by admin", ad_id)
+        await callback.message.edit_text(f"Ad {ad_id} kept by admin.")
+    except Exception:
+        log.exception("on_admin_suspicious_keep failed")
+
+
 @router.callback_query(F.data == "my_chats")
 async def on_my_chats(callback: CallbackQuery):
     try:
@@ -1366,15 +1399,15 @@ async def on_text_message(message: Message):
             proc_msg = await bot.send_message(chat_id, processing)
             lang = await get_user_language(user_id)
             raw = (message.text or "").strip()
-            approved, reject_reason = await moderate_content(raw)
-            if not approved:
-                log.info("MODERATION: ad REJECTED - %s", reject_reason or "")
+            verdict, reason = await moderate_content(raw)
+            if verdict == "REJECTED":
+                log.info("MODERATION: ad REJECTED - %s", reason or "")
                 try:
                     await proc_msg.delete()
                 except Exception:
                     pass
                 polite = await translate_to("Your ad could not be published.", LANGUAGES.get(lang, "Other"))
-                reason_t = await translate_to(reject_reason or "Content not allowed", LANGUAGES.get(lang, "Other"))
+                reason_t = await translate_to(reason or "Content not allowed", LANGUAGES.get(lang, "Other"))
                 await set_state(
                     bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id,
                     override_text=f"❌ {polite}\n\n{reason_t}", override_kb=main_menu_keyboard(lang, user_id),
@@ -1417,6 +1450,29 @@ async def on_text_message(message: Message):
                 return
             await save_user_message(user_id, chat_id, proc_msg.message_id)
             await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+            if verdict == "SUSPICIOUS":
+                log.info("MODERATION: ad %s SUSPICIOUS - %s", ad_id, reason or "")
+                admin_chat_id = await get_user_chat_id(ADMIN_USER_ID) if ADMIN_USER_ID else None
+                if admin_chat_id:
+                    # Send as a separate message; do not update admin's stored message_id or state so it doesn't affect their current screen
+                    ad_content_only = (raw or "").strip()[:2000]
+                    ru_translation = await translate_to(ad_content_only, "Russian") if ad_content_only else ""
+                    header = "⚠️ Suspicious ad published. Please review:\n\n"
+                    original_block = "Original:\n" + ad_content_only + "\n\n"
+                    russian_block = "Russian:\n" + ru_translation
+                    notify_body = header + original_block + russian_block
+                    if len(notify_body) > 4000:
+                        notify_body = notify_body[:3997] + "..."
+                    await bot.send_message(
+                        admin_chat_id,
+                        notify_body,
+                        reply_markup=InlineKeyboardMarkup(
+                            inline_keyboard=[
+                                [InlineKeyboardButton(text="🗑️ Remove ad", callback_data=f"admin_suspicious_remove_{ad_id}")],
+                                [InlineKeyboardButton(text="✅ Keep ad", callback_data=f"admin_suspicious_keep_{ad_id}")],
+                            ]
+                        ),
+                    )
             return
         if state == USER_STATE_IN_RELAY:
             relay_id = await get_user_current_relay_id(user_id)
@@ -1432,12 +1488,12 @@ async def on_text_message(message: Message):
                 pass
             from_name = message.from_user.first_name or message.from_user.username or str(user_id)
             original = message.text or ""
-            approved, reject_reason = await moderate_content(original)
-            if not approved:
-                log.info("MODERATION: message REJECTED - %s", reject_reason or "")
+            verdict, reason = await moderate_content(original)
+            if verdict == "REJECTED":
+                log.info("MODERATION: message REJECTED - %s", reason or "")
                 my_lang = await get_user_language(user_id)
                 prefix = await translate_to("Message not sent:", LANGUAGES.get(my_lang, "Other"))
-                reason_t = await translate_to(reject_reason or "Content not allowed", LANGUAGES.get(my_lang, "Other"))
+                reason_t = await translate_to(reason or "Content not allowed", LANGUAGES.get(my_lang, "Other"))
                 await bot.send_message(chat_id, f"❌ {prefix} {reason_t}")
                 return
             log.info("MODERATION: message APPROVED (relay_id=%s)", session["id"])
