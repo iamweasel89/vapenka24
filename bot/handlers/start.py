@@ -64,15 +64,15 @@ BACK_TO_CHATS_TEXTS = {
     "other": "🔙 Back to chats",
 }
 
-# Ad type labels for confirmation and view ads (sk, uz, tl, uk, other)
-TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "other": "Selling"}
-TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "other": "Looking for"}
-TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "other": "Giving away"}
-TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "other": "Other"}
+# Ad type labels for confirmation and view ads — all LANGUAGES keys (sk, uz, tl, uk, ro, en, hu, other)
+TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "ro": "Vând", "en": "Selling", "hu": "Eladó", "other": "Selling"}
+TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "ro": "Caut", "en": "Looking for", "hu": "Keresek", "other": "Looking for"}
+TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "ro": "Dau gratuit", "en": "Giving away", "hu": "Ingyen adok", "other": "Giving away"}
+TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "ro": "Altele", "en": "Other", "hu": "Egyéb", "other": "Other"}
 TYPE_LABELS = {"SELL": TYPE_LABEL_SELL, "SEEK": TYPE_LABEL_SEEK, "GIVE": TYPE_LABEL_GIVE, "OTHER": TYPE_LABEL_OTHER}
 
-CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "other": "✅ Correct"}
-CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "other": "✏️ Change type"}
+CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "ro": "✅ Corect", "en": "✅ Correct", "hu": "✅ Helyes", "other": "✅ Correct"}
+CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "ro": "✏️ Schimbă tipul", "en": "✏️ Change type", "hu": "✏️ Típus módosítása", "other": "✏️ Change type"}
 
 FILTER_BTN_TEXTS = {"sk": "🔽 Filter", "uz": "🔽 Filtr", "tl": "🔽 Filter", "uk": "🔽 Фільтр", "other": "🔽 Filter"}
 FILTER_ALL_TEXTS = {"sk": "Všetko", "uz": "Hammasi", "tl": "All", "uk": "Все", "other": "All"}
@@ -213,12 +213,16 @@ LANG_BUTTON_TEXTS = {
 }
 
 
-def _days_left(expires_at: str | None) -> str:
-    if not expires_at:
+def _days_left(expires_at: str | datetime | None) -> str:
+    if expires_at is None:
         return "? days left"
     try:
-        # SQLite returns "YYYY-MM-DD HH:MM:SS" (UTC or local)
-        end = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        # PostgreSQL/asyncpg returns datetime; SQLite or strings come as str
+        if isinstance(expires_at, datetime):
+            end = expires_at
+        else:
+            # String: "YYYY-MM-DD HH:MM:SS" or ISO with Z
+            end = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
         if end.tzinfo is None:
             end = end.replace(tzinfo=timezone.utc)
         now = datetime.now(timezone.utc)
@@ -228,7 +232,7 @@ def _days_left(expires_at: str | None) -> str:
         if delta == 1:
             return "1 day left"
         return f"{delta} days left"
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         return "? days left"
 
 
@@ -306,11 +310,15 @@ async def edit_user_message(
 
 
 async def get_user_language(user_id: int) -> str:
+    """Return user's language code (sk, uk, en, etc.). Always returns a key from LANGUAGES."""
     async with get_pool().acquire() as conn:
         row = await conn.fetchrow(
             "SELECT language FROM users WHERE user_id = $1", user_id,
         )
-        return row["language"] if row else "other"
+        if not row or row["language"] is None:
+            return "other"
+        raw = str(row["language"]).strip().lower()
+        return raw if raw in LANGUAGES else "other"
 
 
 USER_STATE_MAIN_MENU = "MAIN_MENU"
