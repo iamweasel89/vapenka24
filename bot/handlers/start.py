@@ -245,6 +245,34 @@ FEEDBACK_PROMPT_TEXTS = {
     "hu": "Írja meg visszajelzését (a saját nyelvén):",
 }
 
+RULES_TEXTS = {
+    "sk": "Pár pravidiel: uverejňujte len inzeráty na predmet a služby. Žiadne urážky ani agresia. Žiadny spam ani reklama zvonku. Porušenia znamenajú ban.",
+    "uz": "Bir necha qoida: faqat buyumlar va xizmatlar haqida e'lonlar joylang. Haqorat yoki tajovuz yo'q. Spam yoki tashqi reklama yo'q. Bu buzilishlar ban bilan yakunlanadi.",
+    "tl": "Ilang patakaran: mag-post lamang ng mga ad tungkol sa mga item at serbisyo. Walang insulto o agresyon. Walang spam o labas na advertising. Ang mga paglabag ay nagresulta sa ban.",
+    "uk": "Кілька правил: публікуйте лише оголошення про речі та послуги. Без образ і агресії. Без спаму та зовнішньої реклами. Порушення призводять до бану.",
+    "ro": "Câteva reguli: postați doar anunțuri despre obiecte și servicii. Fără insulte sau agresivitate. Fără spam sau reclame externe. Încălcările duc la ban.",
+    "en": "A few rules: post only ads about items and services. No insults or aggression. No spam or outside advertising. Violations result in a ban.",
+    "hu": "Néhány szabály: csak tárgyakról és szolgáltatásokról szóló hirdetéseket tegyél közzé. Nincs sértés vagy agresszió. Nincs spam vagy külső reklám. A szabálysértések bant eredményeznek.",
+}
+I_UNDERSTAND_TEXTS = {
+    "sk": "✅ Rozumiem",
+    "uz": "✅ Tushundim",
+    "tl": "✅ Naiintindihan ko",
+    "uk": "✅ Я розумію",
+    "ro": "✅ Înțeleg",
+    "en": "✅ I understand",
+    "hu": "✅ Értem",
+}
+BLOCKED_TEXTS = {
+    "sk": "Váš účet bol zablokovaný. Obráťte sa na administrátora.",
+    "uz": "Hisobingiz bloklangan. Administrator bilan bog'laning.",
+    "tl": "Na-block ang iyong account. Makipag-ugnayan sa administrator.",
+    "uk": "Ваш обліковий запис заблоковано. Зв'яжіться з адміністратором.",
+    "ro": "Contul dvs. a fost blocat. Contactați administratorul.",
+    "en": "Your account has been blocked. Contact the administrator.",
+    "hu": "A fiókodat blokkolták. Lépj kapcsolatba az adminisztrátorral.",
+}
+
 CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову / Alegeți limba / Válasszon nyelvet:"
 
 WELCOME_MESSAGE_EN = (
@@ -454,6 +482,44 @@ async def set_user_welcome_shown(user_id: int, shown: bool = True) -> None:
         )
 
 
+async def get_user_rules_accepted(user_id: int) -> bool:
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT rules_accepted FROM users WHERE user_id = $1", user_id,
+        )
+        if row is None:
+            return False
+        val = row.get("rules_accepted") if hasattr(row, "get") else row["rules_accepted"]
+        return val is not None and int(val) == 1
+
+
+async def set_user_rules_accepted(user_id: int, accepted: bool = True) -> None:
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET rules_accepted = $1 WHERE user_id = $2",
+            1 if accepted else 0, user_id,
+        )
+
+
+async def get_user_banned(user_id: int) -> bool:
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT is_banned FROM users WHERE user_id = $1", user_id,
+        )
+        if row is None:
+            return False
+        val = row.get("is_banned") if hasattr(row, "get") else row["is_banned"]
+        return bool(val)
+
+
+async def set_user_banned(user_id: int, banned: bool) -> None:
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET is_banned = $1 WHERE user_id = $2",
+            banned, user_id,
+        )
+
+
 async def save_ad(user_id: int, language: str, text: str, author_name: str, ad_type: str = "OTHER") -> int:
     async with get_pool().acquire() as conn:
         row = await conn.fetchrow(
@@ -553,10 +619,19 @@ async def set_user_view_ads_filter(user_id: int, value: str):
 
 
 async def get_all_users() -> list:
-    """All registered users for admin list."""
+    """All registered users for admin list. Each dict has user_id, language, created_at, is_banned."""
     async with get_pool().acquire() as conn:
         rows = await conn.fetch(
-            "SELECT user_id, language, created_at FROM users ORDER BY user_id",
+            "SELECT user_id, language, created_at, COALESCE(is_banned, false) AS is_banned FROM users ORDER BY user_id",
+        )
+        return [_row_to_dict(row) or dict(row) for row in rows]
+
+
+async def get_banned_users() -> list:
+    """Users with is_banned = true for admin banned list."""
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT user_id, language, created_at FROM users WHERE is_banned = true ORDER BY user_id",
         )
         return [_row_to_dict(row) or dict(row) for row in rows]
 
@@ -1028,10 +1103,13 @@ async def _draw_in_relay(bot: Bot, user_id: int, chat_id: int):
 async def _admin_menu_keyboard() -> InlineKeyboardMarkup:
     pending = await get_pending_suspicious_count()
     pending_label = f"⚠️ Pending review ({pending})" if pending else "⚠️ Pending review"
+    banned_count = await get_banned_users()
+    banned_label = f"🚫 Banned users ({len(banned_count)})" if banned_count else "🚫 Banned users"
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=pending_label, callback_data="admin_pending_review")],
             [InlineKeyboardButton(text="👥 Users", callback_data="admin_users")],
+            [InlineKeyboardButton(text=banned_label, callback_data="admin_banned_users")],
             [InlineKeyboardButton(text="📋 Ads", callback_data="admin_ads")],
             [InlineKeyboardButton(text="🗑️ Clear database", callback_data="admin_clear")],
             [InlineKeyboardButton(text="📊 Stats", callback_data="admin_stats")],
@@ -1103,9 +1181,11 @@ async def set_state(
 async def cmd_start(message: Message):
     try:
         user_id = message.from_user.id
-        log.info("User %s started bot", user_id)
         chat_id = message.chat.id
         bot = message.bot
+        if not await _check_not_banned(bot, user_id, chat_id):
+            return
+        log.info("User %s started bot", user_id)
         chat_id_stored, message_id_stored = await get_user_message_ids(user_id)
         if chat_id_stored is not None and message_id_stored is not None:
             try:
@@ -1132,11 +1212,37 @@ async def on_language(callback: CallbackQuery):
         user_id = callback.from_user.id
         chat_id = callback.message.chat.id
         bot = callback.bot
+        if not await _check_not_banned(bot, user_id, chat_id):
+            return
         lang = callback.data.replace("lang_", "")
         if lang not in LANGUAGES:
             lang = "en"
         await set_user_language(user_id, lang)
         log.info("User %s chose language %s", user_id, lang)
+        rules_accepted = await get_user_rules_accepted(user_id)
+        if not rules_accepted:
+            rules_text = RULES_TEXTS.get(lang, RULES_TEXTS["en"])
+            kb = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=I_UNDERSTAND_TEXTS.get(lang, I_UNDERSTAND_TEXTS["en"]), callback_data="rules_accept")]]
+            )
+            try:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=callback.message.message_id,
+                    text=rules_text,
+                    reply_markup=kb,
+                )
+            except Exception:
+                sent = await bot.send_message(chat_id, rules_text, reply_markup=kb)
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
+                except Exception:
+                    pass
+                await save_user_message(user_id, chat_id, sent.message_id)
+            else:
+                await save_user_message(user_id, chat_id, callback.message.message_id)
+            await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+            return
         already_shown = await get_user_welcome_shown(user_id)
         if not already_shown:
             await set_user_welcome_shown(user_id, True)
@@ -1145,7 +1251,7 @@ async def on_language(callback: CallbackQuery):
             else:
                 welcome_text = await translate_to(
                     WELCOME_MESSAGE_EN,
-                    LANGUAGES.get(lang, "Other"),
+                    LANGUAGES.get(lang, LANGUAGES["en"]),
                 )
             try:
                 await bot.edit_message_text(
@@ -1174,11 +1280,57 @@ async def on_language(callback: CallbackQuery):
         log.exception("on_language failed")
 
 
+@router.callback_query(F.data == "rules_accept")
+async def on_rules_accept(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        user_id = callback.from_user.id
+        chat_id = callback.message.chat.id
+        bot = callback.bot
+        if not await _check_not_banned(bot, user_id, chat_id):
+            return
+        await set_user_rules_accepted(user_id, True)
+        already_shown = await get_user_welcome_shown(user_id)
+        lang = await get_user_language(user_id)
+        if not already_shown:
+            await set_user_welcome_shown(user_id, True)
+            if lang == "uk":
+                welcome_text = WELCOME_MESSAGE_UK
+            else:
+                welcome_text = await translate_to(
+                    WELCOME_MESSAGE_EN,
+                    LANGUAGES.get(lang, LANGUAGES["en"]),
+                )
+            try:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=callback.message.message_id,
+                    text=welcome_text,
+                    reply_markup=main_menu_keyboard(lang, user_id),
+                )
+            except Exception:
+                sent = await bot.send_message(chat_id, welcome_text, reply_markup=main_menu_keyboard(lang, user_id))
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
+                except Exception:
+                    pass
+                await save_user_message(user_id, chat_id, sent.message_id)
+            else:
+                await save_user_message(user_id, chat_id, callback.message.message_id)
+        else:
+            await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
+        await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+    except Exception:
+        log.exception("on_rules_accept failed")
+
+
 @router.callback_query(F.data == "back_to_menu")
 async def on_back_to_menu(callback: CallbackQuery, state: FSMContext):
     try:
-        await state.clear()
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
+        await state.clear()
         await set_state(callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_back_to_menu failed")
@@ -1286,8 +1438,10 @@ async def on_set_type(callback: CallbackQuery):
 @router.callback_query(F.data == "post_ad")
 async def on_post_ad(callback: CallbackQuery, state: FSMContext):
     try:
-        await state.clear()
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
+        await state.clear()
         await set_state(callback.bot, callback.from_user.id, USER_STATE_POSTING_AD, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_post_ad failed")
@@ -1297,6 +1451,8 @@ async def on_post_ad(callback: CallbackQuery, state: FSMContext):
 async def on_view_ads(callback: CallbackQuery):
     try:
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
         await set_state(callback.bot, callback.from_user.id, USER_STATE_VIEWING_ADS, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_view_ads failed")
@@ -1306,6 +1462,8 @@ async def on_view_ads(callback: CallbackQuery):
 async def on_feedback(callback: CallbackQuery):
     try:
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
         await set_state(callback.bot, callback.from_user.id, USER_STATE_FEEDBACK, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_feedback failed")
@@ -1316,6 +1474,8 @@ async def on_view_ads_filter_open(callback: CallbackQuery):
     """Show type filter options: ALL, SELL, SEEK, GIVE, OTHER."""
     try:
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
         lang = await get_user_language(callback.from_user.id)
         all_t = FILTER_ALL_TEXTS.get(lang, FILTER_ALL_TEXTS["en"])
         kb = InlineKeyboardMarkup(
@@ -1338,6 +1498,8 @@ async def on_view_ads_filter_select(callback: CallbackQuery):
     """User selected a filter -> save and redraw View ads."""
     try:
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
         raw = callback.data or ""
         if not raw.startswith("view_ads_filter_"):
             return
@@ -1352,6 +1514,19 @@ async def on_view_ads_filter_select(callback: CallbackQuery):
 
 def _require_admin(user_id: int) -> bool:
     return ADMIN_USER_ID is not None and user_id == ADMIN_USER_ID
+
+
+async def _check_not_banned(bot: Bot, user_id: int, chat_id: int) -> bool:
+    """If user is banned, send blocked message and return False. Otherwise return True."""
+    if not await get_user_banned(user_id):
+        return True
+    lang = await get_user_language(user_id)
+    text = BLOCKED_TEXTS.get(lang, BLOCKED_TEXTS["en"])
+    try:
+        await bot.send_message(chat_id, text)
+    except Exception:
+        pass
+    return False
 
 
 @router.callback_query(F.data == "admin_menu")
@@ -1400,6 +1575,40 @@ async def on_admin_users(callback: CallbackQuery):
             return
         users = await get_all_users()
         lines = ["👥 Users\n"]
+        buttons = []
+        for u in users:
+            uid = u.get("user_id") or "?"
+            lang = u.get("language") or "?"
+            created = u.get("created_at") or "—"
+            if created and created != "—":
+                try:
+                    created = str(created)[:19]
+                except Exception:
+                    pass
+            is_banned = u.get("is_banned") if isinstance(u.get("is_banned"), bool) else bool(u.get("is_banned"))
+            lines.append(f"User {uid} · {lang} · {created}")
+            if is_banned:
+                buttons.append([InlineKeyboardButton(text=f"✅ Unban {uid}", callback_data=f"admin_unban_{uid}")])
+            else:
+                buttons.append([InlineKeyboardButton(text=f"🚫 Ban {uid}", callback_data=f"admin_ban_{uid}")])
+        buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")])
+        text = "\n".join(lines) if lines else "👥 No users."
+        if len(text) > 4000:
+            text = text[:3997] + "..."
+        await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    except Exception:
+        log.exception("on_admin_users failed")
+
+
+@router.callback_query(F.data == "admin_banned_users")
+async def on_admin_banned_users(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        users = await get_banned_users()
+        lines = ["🚫 Banned users\n"]
+        buttons = []
         for u in users:
             uid = u.get("user_id") or "?"
             lang = u.get("language") or "?"
@@ -1410,12 +1619,48 @@ async def on_admin_users(callback: CallbackQuery):
                 except Exception:
                     pass
             lines.append(f"User {uid} · {lang} · {created}")
-        text = "\n".join(lines) if lines else "👥 No users."
+            buttons.append([InlineKeyboardButton(text=f"✅ Unban {uid}", callback_data=f"admin_unban_{uid}")])
+        buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")])
+        text = "\n".join(lines) if lines else "🚫 No banned users."
         if len(text) > 4000:
             text = text[:3997] + "..."
-        await callback.message.edit_text(text, reply_markup=_admin_back_keyboard())
+        await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     except Exception:
-        log.exception("on_admin_users failed")
+        log.exception("on_admin_banned_users failed")
+
+
+@router.callback_query(F.data.startswith("admin_ban_"))
+async def on_admin_ban(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        try:
+            target_id = int(callback.data.replace("admin_ban_", "").strip())
+        except ValueError:
+            return
+        await set_user_banned(target_id, True)
+        log.info("ADMIN: banned user %s", target_id)
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_ADMIN_MENU, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_admin_ban failed")
+
+
+@router.callback_query(F.data.startswith("admin_unban_"))
+async def on_admin_unban(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        try:
+            target_id = int(callback.data.replace("admin_unban_", "").strip())
+        except ValueError:
+            return
+        await set_user_banned(target_id, False)
+        log.info("ADMIN: unbanned user %s", target_id)
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_ADMIN_MENU, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_admin_unban failed")
 
 
 @router.callback_query(F.data == "admin_ads")
@@ -1637,6 +1882,8 @@ async def on_admin_suspicious_keep(callback: CallbackQuery):
 async def on_my_chats(callback: CallbackQuery):
     try:
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
         await set_state(callback.bot, callback.from_user.id, USER_STATE_MY_CHATS, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_my_chats failed")
@@ -1645,8 +1892,10 @@ async def on_my_chats(callback: CallbackQuery):
 @router.callback_query(F.data == "back_to_chats")
 async def on_back_to_chats(callback: CallbackQuery, state: FSMContext):
     try:
-        await state.clear()
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
+        await state.clear()
         await set_user_current_relay_id(callback.from_user.id, None)
         await set_state(callback.bot, callback.from_user.id, USER_STATE_MY_CHATS, chat_id=callback.message.chat.id)
     except Exception:
@@ -1657,6 +1906,8 @@ async def on_back_to_chats(callback: CallbackQuery, state: FSMContext):
 async def on_reply_ad(callback: CallbackQuery):
     try:
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
         raw = callback.data or ""
         if not raw.startswith(CALLBACK_REPLY_AD_PREFIX):
             return
@@ -1751,8 +2002,10 @@ async def on_relay_reply(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("relay_stop_"))
 async def on_relay_stop(callback: CallbackQuery, state: FSMContext):
     try:
-        await state.clear()
         await callback.answer()
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
+        await state.clear()
         try:
             session_id = int(callback.data.replace("relay_stop_", "").strip())
         except ValueError:
@@ -1822,6 +2075,8 @@ async def on_text_message(message: Message):
             await message.delete()
         except Exception:
             pass
+        if not await _check_not_banned(bot, user_id, chat_id):
+            return
         state = await get_user_state(user_id)
 
         if state == USER_STATE_FEEDBACK:

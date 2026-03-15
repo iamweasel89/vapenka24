@@ -27,9 +27,24 @@ async def init_db():
                 view_ads_filter TEXT DEFAULT 'ALL',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 pending_ad_id BIGINT,
-                welcome_shown INTEGER DEFAULT 0
+                welcome_shown INTEGER DEFAULT 0,
+                is_banned BOOLEAN NOT NULL DEFAULT false,
+                rules_accepted INTEGER NOT NULL DEFAULT 0
             )"""
         )
+        for sql in (
+            "ALTER TABLE users ADD COLUMN is_banned BOOLEAN NOT NULL DEFAULT false",
+            "ALTER TABLE users ADD COLUMN rules_accepted INTEGER NOT NULL DEFAULT 0",
+        ):
+            try:
+                await conn.execute(sql)
+            except Exception as e:
+                if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                    raise
+        try:
+            await conn.execute("UPDATE users SET rules_accepted = 1 WHERE welcome_shown = 1")
+        except Exception:
+            pass
         await conn.execute(
             """CREATE TABLE IF NOT EXISTS ads (
                 id SERIAL PRIMARY KEY,
