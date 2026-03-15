@@ -817,8 +817,20 @@ async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | N
 
 async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
     viewer_lang = await get_user_language(user_id)
+    loading_text = await translate_to("⏳ Loading...", LANGUAGES.get(viewer_lang, "Other"))
+    loading_msg = await bot.send_message(chat_id, loading_text)
+    await view_ads_add_message(user_id, chat_id, loading_msg.message_id)
+
     type_filter = await get_user_view_ads_filter(user_id)
     ads = await get_last_ads(limit=VIEW_ADS_MAX, offset=0, type_filter=type_filter)
+
+    for cid, mid in await view_ads_get_messages(user_id):
+        try:
+            await bot.delete_message(chat_id=cid, message_id=mid)
+        except Exception:
+            pass
+    await view_ads_clear_messages(user_id)
+
     if not ads:
         msg = NO_ADS.get(viewer_lang, NO_ADS["other"])
         sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(viewer_lang))
