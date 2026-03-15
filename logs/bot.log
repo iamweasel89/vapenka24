@@ -312,3 +312,7 @@ Traceback (most recent call last):
   File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
     raise TelegramBadRequest(method=method, message=description)
 aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+2026-03-15 05:14:08 | INFO | User 7509358328 started bot
+2026-03-15 05:14:09 | INFO | User 7509358328 chose language uk
+2026-03-15 05:19:43 | INFO | User 5121687297 started bot
+2026-03-15 05:19:45 | INFO | User 5121687297 chose language sk

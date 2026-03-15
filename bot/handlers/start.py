@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 
 from bot.config import DB_PATH, LANGUAGES
 from bot.logging_config import get_logger
-from bot.translate import translate_to
+from bot.translate import translate_to, classify_ad_type
 
 log = get_logger()
 
@@ -63,6 +63,19 @@ BACK_TO_CHATS_TEXTS = {
     "uk": "🔙 Назад до чатів",
     "other": "🔙 Back to chats",
 }
+
+# Ad type labels for confirmation and view ads (sk, uz, tl, uk, other)
+TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "other": "Selling"}
+TYPE_LABEL_BUY = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "other": "Looking for"}
+TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "other": "Giving away"}
+TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "other": "Other"}
+TYPE_LABELS = {"SELL": TYPE_LABEL_SELL, "BUY": TYPE_LABEL_BUY, "GIVE": TYPE_LABEL_GIVE, "OTHER": TYPE_LABEL_OTHER}
+
+CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "other": "✅ Correct"}
+CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "other": "✏️ Change type"}
+
+FILTER_BTN_TEXTS = {"sk": "🔽 Filter", "uz": "🔽 Filtr", "tl": "🔽 Filter", "uk": "🔽 Фільтр", "other": "🔽 Filter"}
+FILTER_ALL_TEXTS = {"sk": "Všetko", "uz": "Hammasi", "tl": "All", "uk": "Все", "other": "All"}
 
 ENTER_AD_TEXT = {
     "sk": "Zadajte text inzerátu:",
@@ -336,32 +349,46 @@ async def set_user_language(user_id: int, lang: str):
         await db.commit()
 
 
-async def save_ad(user_id: int, language: str, text: str, author_name: str):
+async def save_ad(user_id: int, language: str, text: str, author_name: str, ad_type: str = "OTHER") -> int:
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO ads (user_id, language, content, author_name) VALUES (?, ?, ?, ?)",
-            (user_id, language, text, author_name),
+        cur = await db.execute(
+            "INSERT INTO ads (user_id, language, content, author_name, type) VALUES (?, ?, ?, ?, ?)",
+            (user_id, language, text, author_name, ad_type),
         )
+        await db.commit()
+        return cur.lastrowid
+
+
+async def update_ad_type(ad_id: int, ad_type: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE ads SET type = ? WHERE id = ?", (ad_type, ad_id))
         await db.commit()
 
 
-async def get_ads_count() -> int:
+async def get_ads_count(type_filter: str | None = None) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT COUNT(*) FROM ads WHERE expires_at > datetime('now')"
-        ) as cur:
+        q = "SELECT COUNT(*) FROM ads WHERE expires_at > datetime('now')"
+        params = []
+        if type_filter and type_filter != "ALL":
+            q += " AND type = ?"
+            params.append(type_filter)
+        async with db.execute(q, params or None) as cur:
             row = await cur.fetchone()
             return row[0] if row else 0
 
 
-async def get_last_ads(limit: int = 10, offset: int = 0):
+async def get_last_ads(limit: int = 10, offset: int = 0, type_filter: str | None = None):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """SELECT id, user_id, language, content, author_name, created_at, expires_at
-               FROM ads WHERE expires_at > datetime('now') ORDER BY created_at DESC LIMIT ? OFFSET ?""",
-            (limit, offset),
-        ) as cur:
+        q = """SELECT id, user_id, language, content, author_name, type, created_at, expires_at
+               FROM ads WHERE expires_at > datetime('now')"""
+        params = []
+        if type_filter and type_filter != "ALL":
+            q += " AND type = ?"
+            params.append(type_filter)
+        q += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        async with db.execute(q, params) as cur:
             return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
 
 
@@ -369,11 +396,30 @@ async def get_ad_by_id(ad_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, user_id, language, content, author_name FROM ads WHERE id = ?",
+            "SELECT id, user_id, language, content, author_name, type FROM ads WHERE id = ?",
             (ad_id,),
         ) as cur:
             row = await cur.fetchone()
             return _row_to_dict(row)
+
+
+async def get_user_view_ads_filter(user_id: int) -> str:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT view_ads_filter FROM users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            if row and row[0]:
+                return str(row[0])
+            return "ALL"
+
+
+async def set_user_view_ads_filter(user_id: int, value: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET view_ads_filter = ? WHERE user_id = ?", (value, user_id)
+        )
+        await db.commit()
 
 
 async def get_user_chat_id(user_id: int) -> int | None:
@@ -417,34 +463,42 @@ def write_to_author_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
 
 def view_ads_back_keyboard(lang: str) -> InlineKeyboardMarkup:
     back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
-    return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=back_t, callback_data="back_to_menu")]]
-    )
-
-
-def view_ads_last_ad_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
-    """Keyboard for the last ad: Write to author + Back button."""
-    write_t = WRITE_TO_AUTHOR_TEXTS.get(lang, WRITE_TO_AUTHOR_TEXTS["other"])
-    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
-    data = f"{CALLBACK_REPLY_AD_PREFIX}{int(ad_id)}"[:64]
+    filter_t = FILTER_BTN_TEXTS.get(lang, FILTER_BTN_TEXTS["other"])
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=write_t, callback_data=data)],
-            [InlineKeyboardButton(text=back_t, callback_data="back_to_menu")],
+            [InlineKeyboardButton(text=filter_t, callback_data="view_ads_filter_open"), InlineKeyboardButton(text=back_t, callback_data="back_to_menu")],
         ]
     )
 
 
+def view_ads_last_ad_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
+    """Keyboard for the last ad: Write to author, Filter, Back."""
+    write_t = WRITE_TO_AUTHOR_TEXTS.get(lang, WRITE_TO_AUTHOR_TEXTS["other"])
+    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
+    filter_t = FILTER_BTN_TEXTS.get(lang, FILTER_BTN_TEXTS["other"])
+    data = f"{CALLBACK_REPLY_AD_PREFIX}{int(ad_id)}"[:64]
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=write_t, callback_data=data)],
+            [InlineKeyboardButton(text=filter_t, callback_data="view_ads_filter_open"), InlineKeyboardButton(text=back_t, callback_data="back_to_menu")],
+        ]
+    )
+
+
+def _ad_type_label(ad_type: str, lang: str) -> str:
+    return TYPE_LABELS.get(ad_type or "OTHER", TYPE_LABEL_OTHER).get(lang, TYPE_LABEL_OTHER["other"])
+
+
 async def _build_single_ad_text(ad: dict, viewer_lang: str, ad_id: int = 0) -> str:
     """Build ad display text. Always translate to VIEWER's language (source language detected by OpenAI)."""
+    viewer_lang = (viewer_lang or "other").strip() or "other"
+    type_label = _ad_type_label(ad.get("type") or "OTHER", viewer_lang)
     name = ad["author_name"] or "Unknown"
     days_left = _days_left(ad.get("expires_at"))
     content = ad["content"]
-    viewer_lang = (viewer_lang or "other").strip() or "other"
     target_language_name = LANGUAGES.get(viewer_lang, "Other")
-    print(f"DEBUG: translating ad {ad_id} to {viewer_lang} ({target_language_name})")
     content = await translate_to(content, target_language_name)
-    return f"👤 {name}\n· {days_left}\n\n{content}"
+    return f"🏷 {type_label}\n👤 {name}\n· {days_left}\n\n{content}"
 
 
 VIEW_ADS_MAX = 30
@@ -602,7 +656,8 @@ async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | N
 
 async def _draw_viewing_ads(bot: Bot, user_id: int, chat_id: int):
     viewer_lang = await get_user_language(user_id)
-    ads = await get_last_ads(limit=VIEW_ADS_MAX, offset=0)
+    type_filter = await get_user_view_ads_filter(user_id)
+    ads = await get_last_ads(limit=VIEW_ADS_MAX, offset=0, type_filter=type_filter)
     if not ads:
         msg = NO_ADS.get(viewer_lang, NO_ADS["other"])
         sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(viewer_lang))
@@ -776,6 +831,69 @@ async def on_back_to_menu(callback: CallbackQuery, state: FSMContext):
         log.exception("on_back_to_menu failed")
 
 
+@router.callback_query(F.data == "ad_type_ok")
+async def on_ad_type_ok(callback: CallbackQuery):
+    """User confirmed detected ad type -> return to main menu."""
+    try:
+        await callback.answer()
+        lang = await get_user_language(callback.from_user.id)
+        await set_state(
+            callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id,
+            override_text=MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"]),
+            override_kb=main_menu_keyboard(lang),
+        )
+    except Exception:
+        log.exception("on_ad_type_ok failed")
+
+
+@router.callback_query(F.data.startswith("ad_type_change_"))
+async def on_ad_type_change(callback: CallbackQuery):
+    """Show 4 type options to change ad type."""
+    try:
+        await callback.answer()
+        suffix = callback.data.replace("ad_type_change_", "").strip()
+        try:
+            ad_id = int(suffix)
+        except ValueError:
+            return
+        lang = await get_user_language(callback.from_user.id)
+        select_t = await translate_to("Select type:", LANGUAGES.get(lang, "Other"))
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["other"]), callback_data=f"set_type_{ad_id}_SELL")],
+                [InlineKeyboardButton(text=TYPE_LABEL_BUY.get(lang, TYPE_LABEL_BUY["other"]), callback_data=f"set_type_{ad_id}_BUY")],
+                [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["other"]), callback_data=f"set_type_{ad_id}_GIVE")],
+                [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["other"]), callback_data=f"set_type_{ad_id}_OTHER")],
+            ]
+        )
+        await callback.message.edit_text(select_t, reply_markup=kb)
+    except Exception:
+        log.exception("on_ad_type_change failed")
+
+
+@router.callback_query(F.data.startswith("set_type_"))
+async def on_set_type(callback: CallbackQuery):
+    """User selected new ad type -> update DB and return to main menu."""
+    try:
+        await callback.answer()
+        parts = callback.data.replace("set_type_", "").strip().split("_", 1)
+        if len(parts) != 2:
+            return
+        try:
+            ad_id = int(parts[0])
+            ad_type = str(parts[1]).upper()
+        except (ValueError, IndexError):
+            return
+        if ad_type not in ("SELL", "BUY", "GIVE", "OTHER"):
+            return
+        await update_ad_type(ad_id, ad_type)
+        await set_state(
+            callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id,
+        )
+    except Exception:
+        log.exception("on_set_type failed")
+
+
 @router.callback_query(F.data == "post_ad")
 async def on_post_ad(callback: CallbackQuery, state: FSMContext):
     try:
@@ -793,6 +911,45 @@ async def on_view_ads(callback: CallbackQuery):
         await set_state(callback.bot, callback.from_user.id, USER_STATE_VIEWING_ADS, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_view_ads failed")
+
+
+@router.callback_query(F.data == "view_ads_filter_open")
+async def on_view_ads_filter_open(callback: CallbackQuery):
+    """Show type filter options: ALL, SELL, BUY, GIVE, OTHER."""
+    try:
+        await callback.answer()
+        lang = await get_user_language(callback.from_user.id)
+        all_t = FILTER_ALL_TEXTS.get(lang, FILTER_ALL_TEXTS["other"])
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=all_t, callback_data="view_ads_filter_ALL")],
+                [InlineKeyboardButton(text=TYPE_LABEL_SELL.get(lang, TYPE_LABEL_SELL["other"]), callback_data="view_ads_filter_SELL")],
+                [InlineKeyboardButton(text=TYPE_LABEL_BUY.get(lang, TYPE_LABEL_BUY["other"]), callback_data="view_ads_filter_BUY")],
+                [InlineKeyboardButton(text=TYPE_LABEL_GIVE.get(lang, TYPE_LABEL_GIVE["other"]), callback_data="view_ads_filter_GIVE")],
+                [InlineKeyboardButton(text=TYPE_LABEL_OTHER.get(lang, TYPE_LABEL_OTHER["other"]), callback_data="view_ads_filter_OTHER")],
+            ]
+        )
+        filter_title = await translate_to("Filter by type:", LANGUAGES.get(lang, "Other"))
+        await callback.message.edit_text(filter_title, reply_markup=kb)
+    except Exception:
+        log.exception("on_view_ads_filter_open failed")
+
+
+@router.callback_query(F.data.startswith("view_ads_filter_"))
+async def on_view_ads_filter_select(callback: CallbackQuery):
+    """User selected a filter -> save and redraw View ads."""
+    try:
+        await callback.answer()
+        raw = callback.data or ""
+        if not raw.startswith("view_ads_filter_"):
+            return
+        value = raw.replace("view_ads_filter_", "").strip()
+        if value not in ("ALL", "SELL", "BUY", "GIVE", "OTHER"):
+            return
+        await set_user_view_ads_filter(callback.from_user.id, value)
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_VIEWING_ADS, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_view_ads_filter_select failed")
 
 
 @router.callback_query(F.data == "my_chats")
@@ -970,18 +1127,29 @@ async def on_text_message(message: Message):
             lang = await get_user_language(user_id)
             raw = (message.text or "").strip()
             author_name = message.from_user.full_name or message.from_user.username or str(user_id)
-            await save_ad(user_id, lang, raw, author_name)
+            save_task = save_ad(user_id, lang, raw, author_name, ad_type="OTHER")
+            classify_task = classify_ad_type(raw)
+            ad_id, detected_type = await asyncio.gather(save_task, classify_task)
+            await update_ad_type(ad_id, detected_type)
             formatted = _format_user_text(raw)
             confirm = await translate_to("Ad published.", LANGUAGES.get(lang, "Other"))
-            result_text = f"✅ {confirm}\n\n{formatted}"
-            menu_text = MAIN_MENU_TEXTS.get(lang, MAIN_MENU_TEXTS["other"])
+            type_label = _ad_type_label(detected_type, lang)
+            result_text = f"✅ {confirm}\n\n🏷 {await translate_to('Detected type:', LANGUAGES.get(lang, 'Other'))} {type_label}\n\n{formatted}"
             try:
                 await proc_msg.delete()
             except Exception:
                 pass
+            correct_t = CONFIRM_TYPE_CORRECT.get(lang, CONFIRM_TYPE_CORRECT["other"])
+            change_t = CONFIRM_TYPE_CHANGE.get(lang, CONFIRM_TYPE_CHANGE["other"])
+            confirm_kb = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=correct_t, callback_data="ad_type_ok")],
+                    [InlineKeyboardButton(text=change_t, callback_data=f"ad_type_change_{ad_id}")],
+                ]
+            )
             await set_state(
                 bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id,
-                override_text=result_text + "\n\n" + menu_text, override_kb=main_menu_keyboard(lang),
+                override_text=result_text, override_kb=confirm_kb,
             )
             return
         if state == USER_STATE_IN_RELAY:

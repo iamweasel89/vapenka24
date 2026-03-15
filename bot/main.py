@@ -31,6 +31,7 @@ async def init_db():
                 language TEXT NOT NULL,
                 content TEXT NOT NULL,
                 author_name TEXT NOT NULL,
+                type TEXT NOT NULL DEFAULT 'OTHER',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP DEFAULT (datetime('now', '+7 days')),
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
@@ -94,6 +95,16 @@ async def init_db():
             pass
         try:
             await db.execute("ALTER TABLE users ADD COLUMN current_relay_id INTEGER")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
+        try:
+            await db.execute("ALTER TABLE ads ADD COLUMN type TEXT NOT NULL DEFAULT 'OTHER'")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN view_ads_filter TEXT DEFAULT 'ALL'")
             await db.commit()
         except aiosqlite.OperationalError:
             pass
