@@ -452,6 +452,19 @@ VIEW_ADS_MAX = 30
 CALLBACK_REPLY_AD_PREFIX = "reply_ad_"
 
 
+async def relay_find_active_session(user_a: int, user_b: int, ad_id: int) -> dict | None:
+    """Return existing active session between user_a (viewer) and user_b (author) for this ad, or None."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
+               FROM relay_sessions WHERE status = 'active' AND user_a = ? AND user_b = ? AND ad_id = ? LIMIT 1""",
+            (user_a, user_b, ad_id),
+        ) as cur:
+            row = await cur.fetchone()
+            return _row_to_dict(row) if row else None
+
+
 async def relay_create(user_a: int, user_b: int, ad_id: int, viewer_name: str = "") -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
@@ -632,34 +645,23 @@ async def _draw_my_chats(bot: Bot, user_id: int, chat_id: int):
         )
         await save_user_message(user_id, chat_id, sent.message_id)
         return
-    by_ad: dict[int, list] = defaultdict(list)
-    for s in sessions:
-        by_ad[int(s["ad_id"])].append(s)
-    lines = []
     keyboard_buttons = []
-    target_lang_name = LANGUAGES.get(lang, "Other")
-    for ad_id, ad_sessions in sorted(by_ad.items(), key=lambda x: -x[0]):
-        ad = await get_ad_by_id(ad_id)
+    for s in sessions:
+        ad = await get_ad_by_id(int(s["ad_id"]))
         if not ad:
             continue
         content = ad.get("content") or ""
-        preview = await translate_to(_ad_preview_short(content, 180), target_lang_name)
-        lines.append(f"📌 {preview}")
-        for s in ad_sessions:
-            other_id = s["user_b"] if int(s["user_a"]) == user_id else s["user_a"]
-            if int(s["user_a"]) == user_id:
-                partner_name = (ad.get("author_name") or "Author")[:30]
-            else:
-                partner_name = (s.get("viewer_name") or "Someone")[:30]
-            lines.append(f"  💬 {partner_name}")
-            chat_btn = f"💬 {partner_name}"
-            keyboard_buttons.append([InlineKeyboardButton(text=chat_btn, callback_data=f"open_relay_{s['id']}")])
+        ad_btn_preview = _ad_preview_short(content, 20)
+        if int(s["user_a"]) == user_id:
+            partner_name = (ad.get("author_name") or "Author")[:30]
+        else:
+            partner_name = (s.get("viewer_name") or "Someone")[:30]
+        chat_btn = f"💬 {partner_name} · {ad_btn_preview}"
+        keyboard_buttons.append([InlineKeyboardButton(text=chat_btn, callback_data=f"open_relay_{s['id']}")])
     back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
     keyboard_buttons.append([InlineKeyboardButton(text=back_t, callback_data="back_to_menu")])
     title = MY_CHATS_TEXTS.get(lang, MY_CHATS_TEXTS["other"])
-    text = f"{title}\n\n" + "\n".join(lines) if lines else NO_CHATS_TEXTS.get(lang, NO_CHATS_TEXTS["other"])
-    if len(text) > 4000:
-        text = text[:3997] + "..."
+    text = title
     sent = await bot.send_message(
         chat_id, text,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_buttons),
@@ -830,12 +832,22 @@ async def on_reply_ad(callback: CallbackQuery):
         log.info("User %s tapped Write to author: viewer=%s, author=%s, ad_id=%s", viewer_id, viewer_id, author_id, ad_id)
         chat_id = callback.message.chat.id
         bot = callback.bot
-        session_id = await relay_create(viewer_id, author_id, ad_id, viewer_name=viewer_name)
-        log.info("Relay session started: session_id=%s, user_a=%s, user_b=%s, ad_id=%s", session_id, viewer_id, author_id, ad_id)
+        existing = await relay_find_active_session(viewer_id, author_id, ad_id)
+        if existing:
+            session_id = int(existing["id"])
+            log.info("Reusing existing relay session_id=%s", session_id)
+        else:
+            session_id = await relay_create(viewer_id, author_id, ad_id, viewer_name=viewer_name)
+            log.info("Relay session started: session_id=%s, user_a=%s, user_b=%s, ad_id=%s", session_id, viewer_id, author_id, ad_id)
         await set_user_current_relay_id(viewer_id, session_id)
         lang_viewer = await get_user_language(viewer_id)
-        opening_english = f"💬 Chat with {ad.get('author_name') or 'Author'}\nAbout: {(ad.get('content') or '')[:300]}{'...' if len(ad.get('content') or '') > 300 else ''}\n\nType your message below:"
-        opening_text = await translate_to(opening_english, LANGUAGES.get(lang_viewer, "Other"))
+        if existing:
+            opening_text = await _build_relay_ui_text(session_id, viewer_id, lang_viewer)
+            if len(opening_text) > 4000:
+                opening_text = opening_text[:3997] + "..."
+        else:
+            opening_english = f"💬 Chat with {ad.get('author_name') or 'Author'}\nAbout: {(ad.get('content') or '')[:300]}{'...' if len(ad.get('content') or '') > 300 else ''}\n\nType your message below:"
+            opening_text = await translate_to(opening_english, LANGUAGES.get(lang_viewer, "Other"))
         await set_state(
             bot, viewer_id, USER_STATE_IN_RELAY, chat_id=chat_id,
             override_text=opening_text, override_kb=relay_keyboard(lang_viewer, session_id),
