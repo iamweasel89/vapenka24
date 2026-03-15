@@ -526,3 +526,6 @@ sqlite3.OperationalError: no such column: created_at
 2026-03-15 10:04:43 | INFO | User 7509358328 started bot
 2026-03-15 10:04:44 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
 2026-03-15 10:04:45 | INFO | User 7509358328 chose language uk
+2026-03-15 10:27:46 | INFO | User 5121687297 started bot
+2026-03-15 10:27:47 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 10:27:51 | INFO | User 5121687297 chose language sk
