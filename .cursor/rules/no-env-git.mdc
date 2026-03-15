@@ -1,0 +1,15 @@
+---
+description: Never add, modify, or commit .env; always exclude from git
+alwaysApply: true
+---
+
+# .env and Git
+
+**Never** add, modify, or commit the `.env` file. It must always be excluded from git.
+
+- Do **not** create or edit `.env` in the project.
+- Do **not** suggest or run any git command that stages, commits, or includes `.env` (e.g. `git add .env`, or `git add .` when .env would be included).
+- `.env` is listed in `.gitignore`; keep it there and do not remove it.
+- If the user asks to "update env" or "set variables", suggest editing `.env` locally only (or use `.env.example` as a template) and remind them not to commit `.env`.
+
+This rule applies to all git operations and all suggestions involving the `.env` file.

@@ -5,8 +5,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-
-DB_PATH = os.getenv("DB_PATH", "vapenka24.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 
 def _admin_user_id() -> int | None:

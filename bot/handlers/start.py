@@ -1,5 +1,4 @@
 import asyncio
-import aiosqlite
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -8,7 +7,8 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 
-from bot.config import DB_PATH, LANGUAGES, ADMIN_USER_ID
+from bot.config import LANGUAGES, ADMIN_USER_ID
+from bot.db import get_pool
 from bot.logging_config import get_logger
 from bot.translate import translate_to, classify_ad_type, moderate_content
 
@@ -269,25 +269,22 @@ def cancel_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 
 async def save_user_message(user_id: int, chat_id: int, message_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT INTO users (user_id, language, chat_id, message_id) VALUES (?, 'other', ?, ?)
-               ON CONFLICT(user_id) DO UPDATE SET chat_id = excluded.chat_id, message_id = excluded.message_id""",
-            (user_id, chat_id, message_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO users (user_id, language, chat_id, message_id) VALUES ($1, 'other', $2, $3)
+               ON CONFLICT(user_id) DO UPDATE SET chat_id = EXCLUDED.chat_id, message_id = EXCLUDED.message_id""",
+            user_id, chat_id, message_id,
         )
-        await db.commit()
 
 
 async def get_user_message_ids(user_id: int) -> tuple[int | None, int | None]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT chat_id, message_id FROM users WHERE user_id = ?", (user_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            if row and row["chat_id"] is not None and row["message_id"] is not None:
-                return int(row["chat_id"]), int(row["message_id"])
-            return None, None
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT chat_id, message_id FROM users WHERE user_id = $1", user_id,
+        )
+        if row and row["chat_id"] is not None and row["message_id"] is not None:
+            return int(row["chat_id"]), int(row["message_id"])
+        return None, None
 
 
 async def edit_user_message(
@@ -309,13 +306,11 @@ async def edit_user_message(
 
 
 async def get_user_language(user_id: int) -> str:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT language FROM users WHERE user_id = ?", (user_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            return row["language"] if row else "other"
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT language FROM users WHERE user_id = $1", user_id,
+        )
+        return row["language"] if row else "other"
 
 
 USER_STATE_MAIN_MENU = "MAIN_MENU"
@@ -328,323 +323,310 @@ USER_STATE_ADMIN_MENU = "ADMIN_MENU"
 
 
 async def get_user_state(user_id: int) -> str:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT state FROM users WHERE user_id = ?", (user_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            if row and row["state"]:
-                return str(row["state"])
-            return USER_STATE_MAIN_MENU
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT state FROM users WHERE user_id = $1", user_id,
+        )
+        if row and row["state"]:
+            return str(row["state"])
+        return USER_STATE_MAIN_MENU
 
 
 async def set_user_state_db(user_id: int, state: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT INTO users (user_id, state) VALUES (?, ?)
-               ON CONFLICT(user_id) DO UPDATE SET state = excluded.state""",
-            (user_id, state),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO users (user_id, state) VALUES ($1, $2)
+               ON CONFLICT(user_id) DO UPDATE SET state = EXCLUDED.state""",
+            user_id, state,
         )
-        await db.commit()
 
 
 async def get_user_current_relay_id(user_id: int) -> int | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT current_relay_id FROM users WHERE user_id = ?", (user_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            if row and row[0] is not None:
-                return int(row[0])
-            return None
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT current_relay_id FROM users WHERE user_id = $1", user_id,
+        )
+        if row and row["current_relay_id"] is not None:
+            return int(row["current_relay_id"])
+        return None
 
 
 async def set_user_current_relay_id(user_id: int, session_id: int | None):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET current_relay_id = ? WHERE user_id = ?", (session_id, user_id))
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET current_relay_id = $1 WHERE user_id = $2",
+            session_id, user_id,
+        )
 
 
 async def set_user_language(user_id: int, lang: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO users (user_id, language) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET language = excluded.language",
-            (user_id, lang),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO users (user_id, language) VALUES ($1, $2)
+               ON CONFLICT(user_id) DO UPDATE SET language = EXCLUDED.language""",
+            user_id, lang,
         )
-        await db.commit()
 
 
 async def get_user_welcome_shown(user_id: int) -> bool:
     """True if we have already shown the one-time welcome (or legacy user with no flag)."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT welcome_shown FROM users WHERE user_id = ?", (user_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            if row is None:
-                return False
-            val = row[0]
-            if val is None:
-                return True
-            return int(val) == 1
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT welcome_shown FROM users WHERE user_id = $1", user_id,
+        )
+        if row is None:
+            return False
+        val = row["welcome_shown"]
+        if val is None:
+            return True
+        return int(val) == 1
 
 
 async def set_user_welcome_shown(user_id: int, shown: bool = True) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET welcome_shown = ? WHERE user_id = ?",
-            (1 if shown else 0, user_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET welcome_shown = $1 WHERE user_id = $2",
+            1 if shown else 0, user_id,
         )
-        await db.commit()
 
 
 async def save_ad(user_id: int, language: str, text: str, author_name: str, ad_type: str = "OTHER") -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "INSERT INTO ads (user_id, language, content, author_name, type) VALUES (?, ?, ?, ?, ?)",
-            (user_id, language, text, author_name, ad_type),
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO ads (user_id, language, content, author_name, type)
+               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
+            user_id, language, text, author_name, ad_type,
         )
-        await db.commit()
-        return cur.lastrowid
+        return row["id"]
 
 
 async def update_ad_type(ad_id: int, ad_type: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE ads SET type = ? WHERE id = ?", (ad_type, ad_id))
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute("UPDATE ads SET type = $1 WHERE id = $2", ad_type, ad_id)
 
 
 async def update_ad_photo(ad_id: int, photo_id: str) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE ads SET photo_id = ? WHERE id = ?", (photo_id, ad_id))
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute("UPDATE ads SET photo_id = $1 WHERE id = $2", photo_id, ad_id)
 
 
 async def get_user_pending_ad_id(user_id: int) -> int | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT pending_ad_id FROM users WHERE user_id = ?", (user_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            if row and row[0] is not None:
-                return int(row[0])
-            return None
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT pending_ad_id FROM users WHERE user_id = $1", user_id,
+        )
+        if row and row["pending_ad_id"] is not None:
+            return int(row["pending_ad_id"])
+        return None
 
 
 async def set_user_pending_ad_id(user_id: int, ad_id: int | None) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET pending_ad_id = ? WHERE user_id = ?",
-            (ad_id, user_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET pending_ad_id = $1 WHERE user_id = $2",
+            ad_id, user_id,
         )
-        await db.commit()
 
 
 async def get_ads_count(type_filter: str | None = None) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        q = "SELECT COUNT(*) FROM ads WHERE expires_at > datetime('now')"
-        params = []
+    async with get_pool().acquire() as conn:
         if type_filter and type_filter != "ALL":
-            q += " AND type = ?"
-            params.append(type_filter)
-        async with db.execute(q, params or None) as cur:
-            row = await cur.fetchone()
-            return row[0] if row else 0
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) FROM ads WHERE expires_at > CURRENT_TIMESTAMP AND type = $1",
+                type_filter,
+            )
+        else:
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) FROM ads WHERE expires_at > CURRENT_TIMESTAMP",
+            )
+        return row[0] if row else 0
 
 
 async def get_last_ads(limit: int = 10, offset: int = 0, type_filter: str | None = None):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        q = """SELECT id, user_id, language, content, author_name, type, created_at, expires_at, photo_id
-               FROM ads WHERE expires_at > datetime('now')"""
-        params = []
+    async with get_pool().acquire() as conn:
         if type_filter and type_filter != "ALL":
-            q += " AND type = ?"
-            params.append(type_filter)
-        q += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
-        async with db.execute(q, params) as cur:
-            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+            rows = await conn.fetch(
+                """SELECT id, user_id, language, content, author_name, type, created_at, expires_at, photo_id
+                   FROM ads WHERE expires_at > CURRENT_TIMESTAMP AND type = $1
+                   ORDER BY created_at DESC LIMIT $2 OFFSET $3""",
+                type_filter, limit, offset,
+            )
+        else:
+            rows = await conn.fetch(
+                """SELECT id, user_id, language, content, author_name, type, created_at, expires_at, photo_id
+                   FROM ads WHERE expires_at > CURRENT_TIMESTAMP
+                   ORDER BY created_at DESC LIMIT $1 OFFSET $2""",
+                limit, offset,
+            )
+        return [_row_to_dict(row) or dict(row) for row in rows]
 
 
 async def get_ad_by_id(ad_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT id, user_id, language, content, author_name, type, photo_id FROM ads WHERE id = ?",
-            (ad_id,),
-        ) as cur:
-            row = await cur.fetchone()
-            return _row_to_dict(row)
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, user_id, language, content, author_name, type, photo_id FROM ads WHERE id = $1",
+            ad_id,
+        )
+        return _row_to_dict(row) if row else None
 
 
 async def get_user_view_ads_filter(user_id: int) -> str:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT view_ads_filter FROM users WHERE user_id = ?", (user_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            if row and row[0]:
-                return str(row[0])
-            return "ALL"
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT view_ads_filter FROM users WHERE user_id = $1", user_id,
+        )
+        if row and row["view_ads_filter"]:
+            return str(row["view_ads_filter"])
+        return "ALL"
 
 
 async def set_user_view_ads_filter(user_id: int, value: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET view_ads_filter = ? WHERE user_id = ?", (value, user_id)
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET view_ads_filter = $1 WHERE user_id = $2",
+            value, user_id,
         )
-        await db.commit()
 
 
 async def get_all_users() -> list:
     """All registered users for admin list."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT user_id, language, created_at FROM users ORDER BY user_id"
-        ) as cur:
-            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT user_id, language, created_at FROM users ORDER BY user_id",
+        )
+        return [_row_to_dict(row) or dict(row) for row in rows]
 
 
 async def get_all_active_ads_admin() -> list:
     """All active ads for admin list (expires_at > now)."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
             """SELECT id, user_id, author_name, type, content, expires_at
-               FROM ads WHERE expires_at > datetime('now') ORDER BY id DESC"""
-        ) as cur:
-            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+               FROM ads WHERE expires_at > CURRENT_TIMESTAMP ORDER BY id DESC""",
+        )
+        return [_row_to_dict(row) or dict(row) for row in rows]
 
 
 async def admin_delete_ad(ad_id: int):
     """Delete one ad and its relay sessions/messages."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM relay_messages WHERE relay_id IN (SELECT id FROM relay_sessions WHERE ad_id = ?)", (ad_id,))
-        await db.execute("DELETE FROM relay_sessions WHERE ad_id = ?", (ad_id,))
-        await db.execute("DELETE FROM ads WHERE id = ?", (ad_id,))
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "DELETE FROM relay_messages WHERE relay_id IN (SELECT id FROM relay_sessions WHERE ad_id = $1)",
+            ad_id,
+        )
+        await conn.execute("DELETE FROM relay_sessions WHERE ad_id = $1", ad_id)
+        await conn.execute("DELETE FROM ads WHERE id = $1", ad_id)
 
 
 async def insert_suspicious_ad(ad_id: int) -> None:
     """Record a suspicious ad for admin review (status=pending)."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT OR REPLACE INTO suspicious_ads (ad_id, notified_at, status) VALUES (?, datetime('now'), 'pending')",
-            (ad_id,),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO suspicious_ads (ad_id, notified_at, status) VALUES ($1, CURRENT_TIMESTAMP, 'pending')
+               ON CONFLICT (ad_id) DO UPDATE SET notified_at = CURRENT_TIMESTAMP, status = 'pending'""",
+            ad_id,
         )
-        await db.commit()
 
 
 async def get_pending_suspicious_count() -> int:
     """Count of suspicious ads with status=pending."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT COUNT(*) FROM suspicious_ads WHERE status = 'pending'"
-        ) as cur:
-            row = await cur.fetchone()
-            return row[0] if row else 0
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT COUNT(*) FROM suspicious_ads WHERE status = 'pending'",
+        )
+        return row[0] if row else 0
 
 
 async def get_pending_suspicious_ads() -> list:
     """Pending suspicious ads with ad content (join ads). Returns list of dicts with ad_id, content, notified_at."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
             """SELECT s.ad_id, s.notified_at, a.content
                FROM suspicious_ads s
                JOIN ads a ON a.id = s.ad_id
                WHERE s.status = 'pending'
-               ORDER BY s.notified_at ASC"""
-        ) as cur:
-            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+               ORDER BY s.notified_at ASC""",
+        )
+        return [_row_to_dict(row) or dict(row) for row in rows]
 
 
 async def update_suspicious_status(ad_id: int, status: str) -> None:
     """Set status for a suspicious ad: pending, kept, or removed."""
     if status not in ("pending", "kept", "removed"):
         return
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE suspicious_ads SET status = ? WHERE ad_id = ?",
-            (status, ad_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE suspicious_ads SET status = $1 WHERE ad_id = $2",
+            status, ad_id,
         )
-        await db.commit()
 
 
 async def update_suspicious_notification(ad_id: int, chat_id: int, message_id: int) -> None:
     """Store the admin push notification message so we can delete it after review."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE suspicious_ads SET notification_chat_id = ?, notification_message_id = ? WHERE ad_id = ?",
-            (chat_id, message_id, ad_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE suspicious_ads SET notification_chat_id = $1, notification_message_id = $2 WHERE ad_id = $3",
+            chat_id, message_id, ad_id,
         )
-        await db.commit()
 
 
 async def get_suspicious_notification(ad_id: int) -> tuple[int | None, int | None]:
     """Return (chat_id, message_id) for the admin notification message, or (None, None)."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT notification_chat_id, notification_message_id FROM suspicious_ads WHERE ad_id = ?",
-            (ad_id,),
-        ) as cur:
-            row = await cur.fetchone()
-            if not row or row[0] is None or row[1] is None:
-                return None, None
-            return int(row[0]), int(row[1])
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT notification_chat_id, notification_message_id FROM suspicious_ads WHERE ad_id = $1",
+            ad_id,
+        )
+        if not row or row["notification_chat_id"] is None or row["notification_message_id"] is None:
+            return None, None
+        return int(row["notification_chat_id"]), int(row["notification_message_id"])
 
 
 async def admin_clear_ads_and_relays():
     """Delete all ads, relay data, and suspicious_ads; keep users."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM relay_messages")
-        await db.execute("DELETE FROM relay_sessions")
-        await db.execute("DELETE FROM suspicious_ads")
-        await db.execute("DELETE FROM ads")
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute("DELETE FROM relay_messages")
+        await conn.execute("DELETE FROM relay_sessions")
+        await conn.execute("DELETE FROM suspicious_ads")
+        await conn.execute("DELETE FROM ads")
 
 
 async def count_active_relay_sessions() -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT COUNT(*) FROM relay_sessions WHERE status = 'active'"
-        ) as cur:
-            row = await cur.fetchone()
-            return row[0] if row else 0
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT COUNT(*) FROM relay_sessions WHERE status = 'active'",
+        )
+        return row[0] if row else 0
 
 
 async def get_user_chat_id(user_id: int) -> int | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT chat_id FROM users WHERE user_id = ?", (user_id,)) as cur:
-            row = await cur.fetchone()
-            return int(row[0]) if row and row[0] is not None else None
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT chat_id FROM users WHERE user_id = $1", user_id,
+        )
+        return int(row["chat_id"]) if row and row["chat_id"] is not None else None
 
 
 async def view_ads_clear_messages(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM view_ads_messages WHERE user_id = ?", (user_id,))
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute("DELETE FROM view_ads_messages WHERE user_id = $1", user_id)
 
 
 async def view_ads_add_message(user_id: int, chat_id: int, message_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO view_ads_messages (user_id, chat_id, message_id) VALUES (?, ?, ?)",
-            (user_id, chat_id, message_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "INSERT INTO view_ads_messages (user_id, chat_id, message_id) VALUES ($1, $2, $3)",
+            user_id, chat_id, message_id,
         )
-        await db.commit()
 
 
 async def view_ads_get_messages(user_id: int) -> list[tuple[int, int]]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT chat_id, message_id FROM view_ads_messages WHERE user_id = ?",
-            (user_id,),
-        ) as cur:
-            return [(int(row[0]), int(row[1])) for row in await cur.fetchall()]
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT chat_id, message_id FROM view_ads_messages WHERE user_id = $1",
+            user_id,
+        )
+        return [(int(r["chat_id"]), int(r["message_id"])) for r in rows]
 
 
 def write_to_author_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
@@ -703,56 +685,60 @@ CALLBACK_REPLY_AD_PREFIX = "reply_ad_"
 
 async def relay_find_active_session(user_a: int, user_b: int, ad_id: int) -> dict | None:
     """Return existing active session between user_a (viewer) and user_b (author) for this ad, or None."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
             """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
-               FROM relay_sessions WHERE status = 'active' AND user_a = ? AND user_b = ? AND ad_id = ? LIMIT 1""",
-            (user_a, user_b, ad_id),
-        ) as cur:
-            row = await cur.fetchone()
-            return _row_to_dict(row) if row else None
+               FROM relay_sessions WHERE status = 'active' AND user_a = $1 AND user_b = $2 AND ad_id = $3 LIMIT 1""",
+            user_a, user_b, ad_id,
+        )
+        return _row_to_dict(row) if row else None
 
 
 async def relay_create(user_a: int, user_b: int, ad_id: int, viewer_name: str = "") -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "INSERT INTO relay_sessions (user_a, user_b, ad_id, viewer_name, status) VALUES (?, ?, ?, ?, 'active')",
-            (user_a, user_b, ad_id, viewer_name or ""),
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO relay_sessions (user_a, user_b, ad_id, viewer_name, status)
+               VALUES ($1, $2, $3, $4, 'active') RETURNING id""",
+            user_a, user_b, ad_id, viewer_name or "",
         )
-        await db.commit()
-        return cur.lastrowid
+        return row["id"]
 
 
 async def relay_get_active_sessions_for_user(user_id: int) -> list:
     """All active relay sessions where user is participant (user_a or user_b)."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
             """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
-               FROM relay_sessions WHERE status = 'active' AND (user_a = ? OR user_b = ?) ORDER BY id DESC""",
-            (user_id, user_id),
-        ) as cur:
-            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+               FROM relay_sessions WHERE status = 'active' AND (user_a = $1 OR user_b = $2) ORDER BY id DESC""",
+            user_id, user_id,
+        )
+        return [_row_to_dict(row) or dict(row) for row in rows]
 
 
 async def relay_get_session_by_id(session_id: int, active_only: bool = True) -> dict | None:
     """Get session by id. If active_only, only return when status='active'."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        q = """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
-               FROM relay_sessions WHERE id = ?"""
+    async with get_pool().acquire() as conn:
         if active_only:
-            q += " AND status = 'active'"
-        async with db.execute(q, (session_id,)) as cur:
-            row = await cur.fetchone()
-            return _row_to_dict(row) if row else None
+            row = await conn.fetchrow(
+                """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
+                   FROM relay_sessions WHERE id = $1 AND status = 'active'""",
+                session_id,
+            )
+        else:
+            row = await conn.fetchrow(
+                """SELECT id, user_a, user_b, ad_id, viewer_name, author_joined, status
+                   FROM relay_sessions WHERE id = $1""",
+                session_id,
+            )
+        return _row_to_dict(row) if row else None
 
 
 async def relay_set_author_joined(relay_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE relay_sessions SET author_joined = 1 WHERE id = ?", (relay_id,))
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE relay_sessions SET author_joined = 1 WHERE id = $1",
+            relay_id,
+        )
 
 
 async def relay_get_other_user(session: dict, user_id: int) -> int:
@@ -760,28 +746,28 @@ async def relay_get_other_user(session: dict, user_id: int) -> int:
 
 
 async def relay_add_message(relay_id: int, from_user_id: int, from_name: str, content: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO relay_messages (relay_id, from_user_id, from_name, content) VALUES (?, ?, ?, ?)",
-            (relay_id, from_user_id, from_name, content),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "INSERT INTO relay_messages (relay_id, from_user_id, from_name, content) VALUES ($1, $2, $3, $4)",
+            relay_id, from_user_id, from_name, content,
         )
-        await db.commit()
 
 
 async def relay_get_messages(relay_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT from_user_id, from_name, content FROM relay_messages WHERE relay_id = ? ORDER BY id",
-            (relay_id,),
-        ) as cur:
-            return [_row_to_dict(row) or dict(row) for row in await cur.fetchall()]
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT from_user_id, from_name, content FROM relay_messages WHERE relay_id = $1 ORDER BY id",
+            relay_id,
+        )
+        return [_row_to_dict(row) or dict(row) for row in rows]
 
 
 async def relay_close(relay_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE relay_sessions SET status = 'closed' WHERE id = ?", (relay_id,))
-        await db.commit()
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "UPDATE relay_sessions SET status = 'closed' WHERE id = $1",
+            relay_id,
+        )
 
 
 def relay_keyboard(lang: str, session_id: int) -> InlineKeyboardMarkup:
