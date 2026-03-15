@@ -8,3 +8,123 @@
 2026-03-15 01:09:37 | INFO | User 5121687297 tapped Write to author: viewer=5121687297, author=7509358328, ad_id=1
 2026-03-15 01:09:37 | INFO | Relay session started: session_id=1, user_a=5121687297, user_b=7509358328, ad_id=1
 2026-03-15 01:09:58 | INFO | Relay message forwarded: from=5121687297 to=7509358328, original=Отлично. А у тебя как дела?, translated=Výborne. A ako sa máš?
+2026-03-15 01:30:54 | INFO | User 5121687297 started bot
+2026-03-15 01:30:54 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:30:56 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 01:31:01 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 01:31:02 | ERROR | on_view_ads failed
+Traceback (most recent call last):
+  File "C:\Users\user\Documents\vapenka24\bot\handlers\start.py", line 583, in on_view_ads
+    back_msg = await bot.send_message(chat_id, "\u200b", reply_markup=view_ads_back_keyboard(lang))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 2917, in send_message
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 488, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\aiohttp.py", line 189, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: text must be non-empty
+2026-03-15 01:31:21 | INFO | User 7509358328 started bot
+2026-03-15 01:31:21 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:31:24 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 01:31:27 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 01:31:30 | ERROR | on_view_ads failed
+Traceback (most recent call last):
+  File "C:\Users\user\Documents\vapenka24\bot\handlers\start.py", line 583, in on_view_ads
+    back_msg = await bot.send_message(chat_id, "\u200b", reply_markup=view_ads_back_keyboard(lang))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 2917, in send_message
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 488, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\aiohttp.py", line 189, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: text must be non-empty
+2026-03-15 01:39:59 | INFO | User 7509358328 started bot
+2026-03-15 01:39:59 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:40:07 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 01:40:10 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 01:40:14 | ERROR | on_view_ads failed
+Traceback (most recent call last):
+  File "C:\Users\user\Documents\vapenka24\bot\handlers\start.py", line 586, in on_view_ads
+    back_msg = await bot.send_message(chat_id, "\u200b", reply_markup=view_ads_back_keyboard(lang))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 2917, in send_message
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 488, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\aiohttp.py", line 189, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: text must be non-empty
+2026-03-15 01:40:22 | INFO | User 5121687297 started bot
+2026-03-15 01:40:22 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:40:23 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 01:40:25 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 01:40:25 | ERROR | on_view_ads failed
+Traceback (most recent call last):
+  File "C:\Users\user\Documents\vapenka24\bot\handlers\start.py", line 586, in on_view_ads
+    back_msg = await bot.send_message(chat_id, "\u200b", reply_markup=view_ads_back_keyboard(lang))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 2917, in send_message
+    return await self(call, request_timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\bot.py", line 488, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\aiohttp.py", line 189, in make_request
+    response = self.check_response(
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: text must be non-empty
+2026-03-15 01:45:52 | INFO | User 5121687297 started bot
+2026-03-15 01:45:52 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:46:03 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 01:46:05 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 01:46:14 | INFO | User 7509358328 started bot
+2026-03-15 01:46:14 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:46:15 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 01:46:17 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 01:51:18 | INFO | User 5121687297 started bot
+2026-03-15 01:51:18 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:51:21 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 01:51:23 | INFO | User 5121687297 (Slovak) viewed ads
+2026-03-15 01:51:31 | INFO | User 7509358328 started bot
+2026-03-15 01:51:31 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:51:32 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 01:51:34 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 01:55:10 | INFO | User 7509358328 started bot
+2026-03-15 01:55:10 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:55:12 | INFO | User 7509358328 (Ukrainian) chose language
+2026-03-15 01:55:13 | INFO | User 7509358328 (Ukrainian) viewed ads
+2026-03-15 01:55:23 | INFO | User 5121687297 started bot
+2026-03-15 01:55:23 | DEBUG | Could not edit existing message: Telegram server says - Bad Request: message to edit not found
+2026-03-15 01:55:25 | INFO | User 5121687297 (Slovak) chose language
+2026-03-15 01:55:26 | INFO | User 5121687297 (Slovak) viewed ads

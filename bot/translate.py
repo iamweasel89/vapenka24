@@ -6,6 +6,7 @@ from bot.config import OPENAI_API_KEY
 async def translate_to(text: str, language: str) -> str:
     if not OPENAI_API_KEY or not text.strip():
         return text
+    print(f"DEBUG: translate_to called, target language={language!r}, text_len={len(text)}")
     prompt = f"Translate the following text to {language}. Return only the translated text, nothing else: {text}"
     try:
         client = AsyncOpenAI(api_key=OPENAI_API_KEY)

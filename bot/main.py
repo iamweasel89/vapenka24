@@ -63,10 +63,16 @@ async def init_db():
                 user_a INTEGER NOT NULL,
                 user_b INTEGER NOT NULL,
                 ad_id INTEGER NOT NULL,
+                viewer_name TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (ad_id) REFERENCES ads(id)
             )"""
         )
+        try:
+            await db.execute("ALTER TABLE relay_sessions ADD COLUMN viewer_name TEXT")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass
         await db.execute(
             """CREATE TABLE IF NOT EXISTS relay_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

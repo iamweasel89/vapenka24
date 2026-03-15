@@ -117,7 +117,11 @@ RELAY_CHAT_HEADER_TEXTS = {
     "uk": "Чат щодо оголошення. Напишіть повідомлення:",
     "other": "Chat about your ad. Type your message:",
 }
-RELAY_STOP_TEXTS = {"sk": "🔙 Ukončiť chat", "uz": "🔙 Chatni tugatish", "tl": "🔙 I-stop ang chat", "uk": "🔙 Зупинити чат", "other": "🔙 Stop chat"}
+RELAY_STOP_TEXTS = {"sk": "🔙 Ukončiť chat", "uz": "🔙 Chatni tugatish", "tl": "🔙 I-stop ang chat", "uk": "🔙 Зупинити чат", "other": "🔙 End chat"}
+
+RELAY_HEADER_CHAT_WITH = {"sk": "💬 Chat s", "uz": "💬 Chat", "tl": "💬 Chat sa", "uk": "💬 Чат з", "other": "💬 Chat with"}
+RELAY_HEADER_ABOUT = {"sk": "O inzeráte:", "uz": "E'lon:", "tl": "Tungkol sa:", "uk": "Про оголошення:", "other": "About:"}
+RELAY_HEADER_TYPE_BELOW = {"sk": "Napíšte správu nižšie:", "uz": "Xabar yozing:", "tl": "Mag-type ng mensahe sa ibaba:", "uk": "Напишіть повідомлення нижче:", "other": "Type your message below:"}
 
 CONNECTING_TEXTS = {
     "sk": "Pripájam vás s autorom...",
@@ -336,12 +340,28 @@ def view_ads_back_keyboard(lang: str) -> InlineKeyboardMarkup:
     )
 
 
-async def _build_single_ad_text(ad: dict, lang: str) -> str:
+def view_ads_last_ad_keyboard(lang: str, ad_id: int) -> InlineKeyboardMarkup:
+    """Keyboard for the last ad: Write to author + Back button."""
+    write_t = WRITE_TO_AUTHOR_TEXTS.get(lang, WRITE_TO_AUTHOR_TEXTS["other"])
+    back_t = BACK_EMOJI_TEXTS.get(lang, BACK_EMOJI_TEXTS["other"])
+    data = f"{CALLBACK_REPLY_AD_PREFIX}{int(ad_id)}"[:64]
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=write_t, callback_data=data)],
+            [InlineKeyboardButton(text=back_t, callback_data="back_to_menu")],
+        ]
+    )
+
+
+async def _build_single_ad_text(ad: dict, viewer_lang: str, ad_id: int = 0) -> str:
+    """Build ad display text. Always translate to VIEWER's language (source language detected by OpenAI)."""
     name = ad["author_name"] or "Unknown"
     days_left = _days_left(ad.get("expires_at"))
     content = ad["content"]
-    if ad.get("language") != lang:
-        content = await translate_to(content, LANGUAGES.get(lang, "Other"))
+    viewer_lang = (viewer_lang or "other").strip() or "other"
+    target_language_name = LANGUAGES.get(viewer_lang, "Other")
+    print(f"DEBUG: translating ad {ad_id} to {viewer_lang} ({target_language_name})")
+    content = await translate_to(content, target_language_name)
     return f"👤 {name}\n· {days_left}\n\n{content}"
 
 
@@ -351,11 +371,11 @@ VIEW_ADS_MAX = 30
 CALLBACK_REPLY_AD_PREFIX = "reply_ad_"
 
 
-async def relay_create(user_a: int, user_b: int, ad_id: int) -> int:
+async def relay_create(user_a: int, user_b: int, ad_id: int, viewer_name: str = "") -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "INSERT INTO relay_sessions (user_a, user_b, ad_id) VALUES (?, ?, ?)",
-            (user_a, user_b, ad_id),
+            "INSERT INTO relay_sessions (user_a, user_b, ad_id, viewer_name) VALUES (?, ?, ?, ?)",
+            (user_a, user_b, ad_id, viewer_name or ""),
         )
         await db.commit()
         return cur.lastrowid
@@ -365,7 +385,7 @@ async def relay_get_active_for_user(user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, user_a, user_b, ad_id FROM relay_sessions WHERE user_a = ? OR user_b = ? ORDER BY id DESC LIMIT 1",
+            "SELECT id, user_a, user_b, ad_id, viewer_name FROM relay_sessions WHERE user_a = ? OR user_b = ? ORDER BY id DESC LIMIT 1",
             (user_id, user_id),
         ) as cur:
             row = await cur.fetchone()
@@ -406,6 +426,32 @@ def relay_keyboard(lang: str, session_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text=stop_t, callback_data=f"relay_stop_{session_id}")]]
     )
+
+
+def _relay_opening_text(lang: str, other_name: str, ad_preview: str) -> str:
+    chat_with = RELAY_HEADER_CHAT_WITH.get(lang, RELAY_HEADER_CHAT_WITH["other"])
+    about = RELAY_HEADER_ABOUT.get(lang, RELAY_HEADER_ABOUT["other"])
+    type_below = RELAY_HEADER_TYPE_BELOW.get(lang, RELAY_HEADER_TYPE_BELOW["other"])
+    return f"{chat_with} {other_name}\n{about} {ad_preview}\n\n{type_below}"
+
+
+async def _delete_all_bot_messages_for_user(bot: Bot, user_id: int, except_message_id: int | None = None):
+    """Delete main message and all view_ads messages for this user. Optionally keep one message (e.g. the relay UI)."""
+    chat_id, main_msg_id = await get_user_message_ids(user_id)
+    if chat_id is None:
+        return
+    to_delete = []
+    if main_msg_id is not None and main_msg_id != except_message_id:
+        to_delete.append((chat_id, main_msg_id))
+    for cid, mid in await view_ads_get_messages(user_id):
+        if (cid, mid) != (chat_id, except_message_id):
+            to_delete.append((cid, mid))
+    for cid, mid in to_delete:
+        try:
+            await bot.delete_message(chat_id=cid, message_id=mid)
+        except Exception:
+            pass
+    await view_ads_clear_messages(user_id)
 
 
 async def _build_relay_ui_text(relay_id: int, for_user_id: int, lang: str) -> str:
@@ -525,8 +571,8 @@ async def on_view_ads(callback: CallbackQuery):
     try:
         await callback.answer()
         user_id = callback.from_user.id
-        lang = await get_user_language(user_id)
-        lang_name = LANGUAGES.get(lang, "Other")
+        viewer_lang = await get_user_language(user_id)
+        lang_name = LANGUAGES.get(viewer_lang, "Other")
         log.info("User %s (%s) viewed ads", user_id, lang_name)
         chat_id = callback.message.chat.id
         bot = callback.bot
@@ -539,21 +585,25 @@ async def on_view_ads(callback: CallbackQuery):
             except Exception:
                 pass
         if not ads:
-            msg = NO_ADS.get(lang, NO_ADS["other"])
-            sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(lang))
+            msg = NO_ADS.get(viewer_lang, NO_ADS["other"])
+            sent = await bot.send_message(chat_id, msg, reply_markup=view_ads_back_keyboard(viewer_lang))
             await save_user_message(user_id, chat_id, sent.message_id)
             return
-        for ad in ads:
-            text = await _build_single_ad_text(ad, lang)
+        for i, ad in enumerate(ads):
+            ad_id = int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0)
+            text = await _build_single_ad_text(ad, viewer_lang, ad_id)
             if len(text) > 4000:
                 text = text[:3997] + "..."
-            ad_id = int(ad.get("id", 0)) if isinstance(ad, dict) else getattr(ad, "id", 0)
-            sent = await bot.send_message(chat_id, text, reply_markup=write_to_author_keyboard(lang, ad_id))
+            is_last = i == len(ads) - 1
+            kb = view_ads_last_ad_keyboard(viewer_lang, ad_id) if is_last else write_to_author_keyboard(viewer_lang, ad_id)
+            sent = await bot.send_message(chat_id, text, reply_markup=kb)
             await view_ads_add_message(user_id, chat_id, sent.message_id)
-        back_msg = await bot.send_message(chat_id, "—", reply_markup=view_ads_back_keyboard(lang))
-        await save_user_message(user_id, chat_id, back_msg.message_id)
+            if is_last:
+                await save_user_message(user_id, chat_id, sent.message_id)
     except Exception:
         log.exception("on_view_ads failed")
+
+
 
 
 @router.callback_query(F.data.startswith(CALLBACK_REPLY_AD_PREFIX))
@@ -585,14 +635,26 @@ async def on_reply_ad(callback: CallbackQuery):
         lang_viewer = await get_user_language(viewer_id)
         connecting_t = CONNECTING_TEXTS.get(lang_viewer, CONNECTING_TEXTS["other"])
         connecting_msg = await bot.send_message(chat_id, connecting_t)
-        session_id = await relay_create(viewer_id, author_id, ad_id)
+        session_id = await relay_create(viewer_id, author_id, ad_id, viewer_name=viewer_name)
         log.info("Relay session started: session_id=%s, user_a=%s, user_b=%s, ad_id=%s", session_id, viewer_id, author_id, ad_id)
-        lang_author = await get_user_language(author_id)
-        interested_t = RELAY_INTERESTED_TEXTS.get(lang_author, RELAY_INTERESTED_TEXTS["other"])
-        reply_btn = RELAY_REPLY_BTN_TEXTS.get(lang_author, RELAY_REPLY_BTN_TEXTS["other"])
-        ad_preview = (ad.get("content") or "")[:500]
-        if len(ad.get("content") or "") > 500:
+        await _delete_all_bot_messages_for_user(bot, viewer_id, except_message_id=connecting_msg.message_id)
+        author_name = ad.get("author_name") or "Author"
+        ad_preview = (ad.get("content") or "")[:300]
+        if len(ad.get("content") or "") > 300:
             ad_preview += "..."
+        opening_text = _relay_opening_text(lang_viewer, author_name, ad_preview)
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=connecting_msg.message_id,
+                text=opening_text,
+                reply_markup=relay_keyboard(lang_viewer, session_id),
+            )
+        except Exception as edit_err:
+            log.debug("edit_message_text failed: %s", edit_err)
+        await save_user_message(viewer_id, chat_id, connecting_msg.message_id)
+        lang_author = await get_user_language(author_id)
+        reply_btn = RELAY_REPLY_BTN_TEXTS.get(lang_author, RELAY_REPLY_BTN_TEXTS["other"])
         author_notify = f"{viewer_name} is interested in your ad:\n\n{ad_preview}"
         author_chat_id = await get_user_chat_id(author_id)
         if author_chat_id:
@@ -603,17 +665,6 @@ async def on_reply_ad(callback: CallbackQuery):
                     inline_keyboard=[[InlineKeyboardButton(text=reply_btn, callback_data=f"relay_reply_{session_id}")]]
                 ),
             )
-        header = RELAY_CHAT_HEADER_TEXTS.get(lang_viewer, RELAY_CHAT_HEADER_TEXTS["other"])
-        try:
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=connecting_msg.message_id,
-                text=header + "\n\n",
-                reply_markup=relay_keyboard(lang_viewer, session_id),
-            )
-        except Exception as edit_err:
-            log.debug("edit_message_text failed: %s", edit_err)
-        await save_user_message(viewer_id, chat_id, connecting_msg.message_id)
     except Exception:
         log.exception("reply_ad failed")
 
@@ -629,21 +680,33 @@ async def on_relay_reply(callback: CallbackQuery):
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
-                "SELECT id, user_a, user_b FROM relay_sessions WHERE id = ?", (session_id,)
+                "SELECT id, user_a, user_b, ad_id, viewer_name FROM relay_sessions WHERE id = ?", (session_id,)
             ) as cur:
                 row = await cur.fetchone()
-                if not row or row["user_b"] != callback.from_user.id:
+                row = _row_to_dict(row) if row else None
+                if not row or int(row.get("user_b", 0)) != callback.from_user.id:
                     return
-        log.info("User %s joined relay session_id=%s", callback.from_user.id, session_id)
+        author_id = callback.from_user.id
+        bot = callback.bot
+        log.info("User %s joined relay session_id=%s", author_id, session_id)
         try:
             await callback.message.delete()
         except Exception:
             pass
-        lang = await get_user_language(callback.from_user.id)
-        text = await _build_relay_ui_text(session_id, callback.from_user.id, lang)
-        if len(text) > 4000:
-            text = text[:3997] + "..."
-        await edit_user_message(callback.bot, callback.from_user.id, text, relay_keyboard(lang, session_id))
+        await _delete_all_bot_messages_for_user(bot, author_id)
+        ad = await get_ad_by_id(int(row["ad_id"]))
+        ad_preview = (ad.get("content") or "")[:300] if ad else ""
+        if ad and len(ad.get("content") or "") > 300:
+            ad_preview += "..."
+        other_name = (row.get("viewer_name") or "").strip() or "Someone"
+        lang = await get_user_language(author_id)
+        opening_text = _relay_opening_text(lang, other_name, ad_preview)
+        sent = await bot.send_message(
+            callback.message.chat.id,
+            opening_text,
+            reply_markup=relay_keyboard(lang, session_id),
+        )
+        await save_user_message(author_id, callback.message.chat.id, sent.message_id)
     except Exception:
         log.exception("on_relay_reply failed")
 
