@@ -192,6 +192,15 @@ OPEN_CHAT_BTN_TEXTS = {
 
 CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову / Alegeți limba / Válasszon nyelvet:"
 
+WELCOME_MESSAGE_EN = (
+    "Vápenka 24 — a bulletin board for residents of this building. "
+    "You can sell things, find a neighbor, or give something away for free — all in your language."
+)
+WELCOME_MESSAGE_UK = (
+    "Вапенка 24 — дошка оголошень для мешканців цього будинку. "
+    "Продавай, шукай, віддавай — і все своєю мовою."
+)
+
 LANG_BUTTON_TEXTS = {
     "sk": "🇸🇰 Slovak",
     "uz": "🇺🇿 Uzbek",
@@ -362,6 +371,30 @@ async def set_user_language(user_id: int, lang: str):
         await db.execute(
             "INSERT INTO users (user_id, language) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET language = excluded.language",
             (user_id, lang),
+        )
+        await db.commit()
+
+
+async def get_user_welcome_shown(user_id: int) -> bool:
+    """True if we have already shown the one-time welcome (or legacy user with no flag)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT welcome_shown FROM users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            if row is None:
+                return False
+            val = row[0]
+            if val is None:
+                return True
+            return int(val) == 1
+
+
+async def set_user_welcome_shown(user_id: int, shown: bool = True) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET welcome_shown = ? WHERE user_id = ?",
+            (1 if shown else 0, user_id),
         )
         await db.commit()
 
@@ -790,6 +823,13 @@ async def _delete_all_bot_messages_for_user(bot: Bot, user_id: int, except_messa
 
 async def _build_relay_ui_text(relay_id: int, for_user_id: int, lang: str, header: bool = True) -> str:
     target_lang_name = LANGUAGES.get(lang, "Other")
+    session = await relay_get_session_by_id(relay_id, active_only=False)
+    ad_block = ""
+    if session and session.get("ad_id"):
+        ad = await get_ad_by_id(int(session["ad_id"]))
+        if ad and ad.get("content"):
+            ad_content = await translate_to((ad["content"] or "").strip(), target_lang_name)
+            ad_block = "📋 " + ad_content + "\n─────────────\n\n"
     messages = await relay_get_messages(relay_id)
     lines = []
     for m in messages:
@@ -800,9 +840,10 @@ async def _build_relay_ui_text(relay_id: int, for_user_id: int, lang: str, heade
         lines.append(f"{name}: {content}")
     thread = "\n".join(lines)
     if not header:
-        return thread
+        return ad_block + thread
     header_text = RELAY_CHAT_HEADER_TEXTS.get(lang, RELAY_CHAT_HEADER_TEXTS["other"])
-    return header_text + "\n\n" + thread if thread else header_text + "\n\n"
+    body = header_text + "\n\n" + thread if thread else header_text + "\n\n"
+    return ad_block + body
 
 
 async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | None = None, reply_markup=None):
@@ -934,6 +975,7 @@ async def _admin_menu_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="📋 Ads", callback_data="admin_ads")],
             [InlineKeyboardButton(text="🗑️ Clear database", callback_data="admin_clear")],
             [InlineKeyboardButton(text="📊 Stats", callback_data="admin_stats")],
+            [InlineKeyboardButton(text="🌐 Promo page", callback_data="admin_promo")],
             [InlineKeyboardButton(text="🔙 Back", callback_data="admin_back_to_menu")],
         ]
     )
@@ -1025,12 +1067,47 @@ async def cmd_start(message: Message):
 async def on_language(callback: CallbackQuery):
     try:
         await callback.answer()
+        user_id = callback.from_user.id
+        chat_id = callback.message.chat.id
+        bot = callback.bot
         lang = callback.data.replace("lang_", "")
         if lang not in LANGUAGES:
             lang = "other"
-        await set_user_language(callback.from_user.id, lang)
-        log.info("User %s chose language %s", callback.from_user.id, lang)
-        await set_state(callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id)
+        await set_user_language(user_id, lang)
+        log.info("User %s chose language %s", user_id, lang)
+        already_shown = await get_user_welcome_shown(user_id)
+        if not already_shown:
+            await set_user_welcome_shown(user_id, True)
+            if lang == "uk":
+                welcome_text = WELCOME_MESSAGE_UK
+            else:
+                welcome_text = await translate_to(
+                    WELCOME_MESSAGE_EN,
+                    LANGUAGES.get(lang, "Other"),
+                )
+            try:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=callback.message.message_id,
+                    text=welcome_text,
+                    reply_markup=main_menu_keyboard(lang, user_id),
+                )
+            except Exception:
+                sent = await bot.send_message(
+                    chat_id,
+                    welcome_text,
+                    reply_markup=main_menu_keyboard(lang, user_id),
+                )
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
+                except Exception:
+                    pass
+                await save_user_message(user_id, chat_id, sent.message_id)
+            else:
+                await save_user_message(user_id, chat_id, callback.message.message_id)
+            await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+        else:
+            await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
     except Exception:
         log.exception("on_language failed")
 
@@ -1358,6 +1435,20 @@ async def on_admin_stats(callback: CallbackQuery):
         await callback.message.edit_text(text, reply_markup=_admin_back_keyboard())
     except Exception:
         log.exception("on_admin_stats failed")
+
+
+@router.callback_query(F.data == "admin_promo")
+async def on_admin_promo(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        await callback.bot.send_message(
+            callback.message.chat.id,
+            "Promo page for sharing with residents\n\nhttps://iamweasel89.github.io/vapenka24/",
+        )
+    except Exception:
+        log.exception("on_admin_promo failed")
 
 
 async def _redraw_pending_review(bot: Bot, chat_id: int, message_id: int) -> None:
