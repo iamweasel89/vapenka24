@@ -730,6 +730,26 @@ async def admin_clear_ads_and_relays():
         await conn.execute("DELETE FROM ads")
 
 
+async def admin_delete_user(user_id: int) -> None:
+    """Delete a user and all their ads, relay sessions and messages. Caller must be admin."""
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            "DELETE FROM relay_messages WHERE relay_id IN (SELECT id FROM relay_sessions WHERE user_a = $1 OR user_b = $1)",
+            user_id, user_id,
+        )
+        await conn.execute(
+            "DELETE FROM relay_sessions WHERE user_a = $1 OR user_b = $1",
+            user_id, user_id,
+        )
+        await conn.execute(
+            "DELETE FROM suspicious_ads WHERE ad_id IN (SELECT id FROM ads WHERE user_id = $1)",
+            user_id,
+        )
+        await conn.execute("DELETE FROM ads WHERE user_id = $1", user_id)
+        await conn.execute("DELETE FROM view_ads_messages WHERE user_id = $1", user_id)
+        await conn.execute("DELETE FROM users WHERE user_id = $1", user_id)
+
+
 async def count_active_relay_sessions() -> int:
     async with get_pool().acquire() as conn:
         row = await conn.fetchrow(
@@ -1219,63 +1239,28 @@ async def on_language(callback: CallbackQuery):
             lang = "en"
         await set_user_language(user_id, lang)
         log.info("User %s chose language %s", user_id, lang)
-        rules_accepted = await get_user_rules_accepted(user_id)
-        if not rules_accepted:
-            rules_text = RULES_TEXTS.get(lang, RULES_TEXTS["en"])
-            kb = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=I_UNDERSTAND_TEXTS.get(lang, I_UNDERSTAND_TEXTS["en"]), callback_data="rules_accept")]]
+        # Always show community rules after language selection (every /start)
+        rules_text = RULES_TEXTS.get(lang, RULES_TEXTS["en"])
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text=I_UNDERSTAND_TEXTS.get(lang, I_UNDERSTAND_TEXTS["en"]), callback_data="rules_accept")]]
+        )
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=callback.message.message_id,
+                text=rules_text,
+                reply_markup=kb,
             )
+        except Exception:
+            sent = await bot.send_message(chat_id, rules_text, reply_markup=kb)
             try:
-                await bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=callback.message.message_id,
-                    text=rules_text,
-                    reply_markup=kb,
-                )
+                await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
             except Exception:
-                sent = await bot.send_message(chat_id, rules_text, reply_markup=kb)
-                try:
-                    await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
-                except Exception:
-                    pass
-                await save_user_message(user_id, chat_id, sent.message_id)
-            else:
-                await save_user_message(user_id, chat_id, callback.message.message_id)
-            await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
-            return
-        already_shown = await get_user_welcome_shown(user_id)
-        if not already_shown:
-            await set_user_welcome_shown(user_id, True)
-            if lang == "uk":
-                welcome_text = WELCOME_MESSAGE_UK
-            else:
-                welcome_text = await translate_to(
-                    WELCOME_MESSAGE_EN,
-                    LANGUAGES.get(lang, LANGUAGES["en"]),
-                )
-            try:
-                await bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=callback.message.message_id,
-                    text=welcome_text,
-                    reply_markup=main_menu_keyboard(lang, user_id),
-                )
-            except Exception:
-                sent = await bot.send_message(
-                    chat_id,
-                    welcome_text,
-                    reply_markup=main_menu_keyboard(lang, user_id),
-                )
-                try:
-                    await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
-                except Exception:
-                    pass
-                await save_user_message(user_id, chat_id, sent.message_id)
-            else:
-                await save_user_message(user_id, chat_id, callback.message.message_id)
-            await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+                pass
+            await save_user_message(user_id, chat_id, sent.message_id)
         else:
-            await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
+            await save_user_message(user_id, chat_id, callback.message.message_id)
+        await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
     except Exception:
         log.exception("on_language failed")
 
@@ -1289,37 +1274,7 @@ async def on_rules_accept(callback: CallbackQuery):
         bot = callback.bot
         if not await _check_not_banned(bot, user_id, chat_id):
             return
-        await set_user_rules_accepted(user_id, True)
-        already_shown = await get_user_welcome_shown(user_id)
-        lang = await get_user_language(user_id)
-        if not already_shown:
-            await set_user_welcome_shown(user_id, True)
-            if lang == "uk":
-                welcome_text = WELCOME_MESSAGE_UK
-            else:
-                welcome_text = await translate_to(
-                    WELCOME_MESSAGE_EN,
-                    LANGUAGES.get(lang, LANGUAGES["en"]),
-                )
-            try:
-                await bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=callback.message.message_id,
-                    text=welcome_text,
-                    reply_markup=main_menu_keyboard(lang, user_id),
-                )
-            except Exception:
-                sent = await bot.send_message(chat_id, welcome_text, reply_markup=main_menu_keyboard(lang, user_id))
-                try:
-                    await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
-                except Exception:
-                    pass
-                await save_user_message(user_id, chat_id, sent.message_id)
-            else:
-                await save_user_message(user_id, chat_id, callback.message.message_id)
-        else:
-            await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
-        await set_user_state_db(user_id, USER_STATE_MAIN_MENU)
+        await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
     except Exception:
         log.exception("on_rules_accept failed")
 
@@ -1587,10 +1542,9 @@ async def on_admin_users(callback: CallbackQuery):
                     pass
             is_banned = u.get("is_banned") if isinstance(u.get("is_banned"), bool) else bool(u.get("is_banned"))
             lines.append(f"User {uid} · {lang} · {created}")
-            if is_banned:
-                buttons.append([InlineKeyboardButton(text=f"✅ Unban {uid}", callback_data=f"admin_unban_{uid}")])
-            else:
-                buttons.append([InlineKeyboardButton(text=f"🚫 Ban {uid}", callback_data=f"admin_ban_{uid}")])
+            ban_btn = InlineKeyboardButton(text=f"✅ Unban {uid}", callback_data=f"admin_unban_{uid}") if is_banned else InlineKeyboardButton(text=f"🚫 Ban {uid}", callback_data=f"admin_ban_{uid}")
+            del_btn = InlineKeyboardButton(text=f"🗑️ Delete {uid}", callback_data=f"admin_delete_user_{uid}")
+            buttons.append([ban_btn, del_btn])
         buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")])
         text = "\n".join(lines) if lines else "👥 No users."
         if len(text) > 4000:
@@ -1687,6 +1641,62 @@ async def on_admin_ads(callback: CallbackQuery):
         await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     except Exception:
         log.exception("on_admin_ads failed")
+
+
+@router.callback_query(F.data.startswith("admin_delete_user_"))
+async def on_admin_delete_user(callback: CallbackQuery):
+    """Show delete-user confirmation or perform delete if confirm."""
+    try:
+        await callback.answer()
+        if not _require_admin(callback.from_user.id):
+            return
+        raw = callback.data or ""
+        if raw.startswith("admin_delete_user_confirm_"):
+            try:
+                target_id = int(raw.replace("admin_delete_user_confirm_", "").strip())
+            except ValueError:
+                return
+            await admin_delete_user(target_id)
+            log.info("ADMIN: deleted user %s", target_id)
+            users = await get_all_users()
+            lines = ["👥 Users\n"]
+            buttons = []
+            for u in users:
+                uid = u.get("user_id") or "?"
+                lang = u.get("language") or "?"
+                created = u.get("created_at") or "—"
+                if created and created != "—":
+                    try:
+                        created = str(created)[:19]
+                    except Exception:
+                        pass
+                is_banned = u.get("is_banned") if isinstance(u.get("is_banned"), bool) else bool(u.get("is_banned"))
+                lines.append(f"User {uid} · {lang} · {created}")
+                ban_btn = InlineKeyboardButton(text=f"✅ Unban {uid}", callback_data=f"admin_unban_{uid}") if is_banned else InlineKeyboardButton(text=f"🚫 Ban {uid}", callback_data=f"admin_ban_{uid}")
+                del_btn = InlineKeyboardButton(text=f"🗑️ Delete {uid}", callback_data=f"admin_delete_user_{uid}")
+                buttons.append([ban_btn, del_btn])
+            buttons.append([InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")])
+            text = "\n".join(lines) if lines else "👥 No users."
+            if len(text) > 4000:
+                text = text[:3997] + "..."
+            await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+            return
+        if raw.startswith("admin_delete_user_"):
+            try:
+                target_id = int(raw.replace("admin_delete_user_", "").strip())
+            except ValueError:
+                return
+            await callback.message.edit_text(
+                "Delete this user? Their ads and chats will also be deleted.",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="✅ Confirm", callback_data=f"admin_delete_user_confirm_{target_id}")],
+                        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_users")],
+                    ]
+                ),
+            )
+    except Exception:
+        log.exception("on_admin_delete_user failed")
 
 
 @router.callback_query(F.data.startswith("admin_del_ad_"))
@@ -2103,7 +2113,10 @@ async def on_text_message(message: Message):
                 admin_chat_id = await get_user_chat_id(ADMIN_USER_ID)
                 if admin_chat_id:
                     try:
-                        await bot.send_message(admin_chat_id, admin_text)
+                        feedback_kb = InlineKeyboardMarkup(
+                            inline_keyboard=[[InlineKeyboardButton(text="🔙 Back", callback_data="admin_back")]]
+                        )
+                        await bot.send_message(admin_chat_id, admin_text, reply_markup=feedback_kb)
                     except Exception as e:
                         log.warning("Failed to send feedback to admin: %s", e)
             await asyncio.sleep(1.5)
