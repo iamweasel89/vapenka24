@@ -55,9 +55,15 @@ async def init_db():
                 type TEXT NOT NULL DEFAULT 'OTHER',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '7 days'),
-                photo_id TEXT
+                photo_id TEXT,
+                is_seed BOOLEAN NOT NULL DEFAULT false
             )"""
         )
+        try:
+            await conn.execute("ALTER TABLE ads ADD COLUMN is_seed BOOLEAN NOT NULL DEFAULT false")
+        except Exception as e:
+            if "already exists" not in str(e).lower() and "duplicate" not in str(e).lower():
+                raise
         await conn.execute(
             """CREATE TABLE IF NOT EXISTS relay_sessions (
                 id SERIAL PRIMARY KEY,

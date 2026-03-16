@@ -263,6 +263,9 @@ I_UNDERSTAND_TEXTS = {
     "en": "✅ I understand",
     "hu": "✅ Értem",
 }
+BANNED_WRITE_PROMPT = "Write your message:"
+BANNED_MESSAGE_SENT = "Message sent"
+
 BLOCKED_TEXTS = {
     "sk": "Váš účet bol zablokovaný. Obráťte sa na administrátora.",
     "uz": "Hisobingiz bloklangan. Administrator bilan bog'laning.",
@@ -412,6 +415,7 @@ USER_STATE_MY_CHATS = "MY_CHATS"
 USER_STATE_IN_RELAY = "IN_RELAY"
 USER_STATE_ADMIN_MENU = "ADMIN_MENU"
 USER_STATE_FEEDBACK = "FEEDBACK"
+USER_STATE_BANNED_MESSAGE = "BANNED_MESSAGE"
 
 
 async def get_user_state(user_id: int) -> str:
@@ -996,7 +1000,7 @@ async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | N
         lang = await get_user_language(user_id)
         blocked_text = BLOCKED_TEXTS.get(lang, BLOCKED_TEXTS["en"])
         kb = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="💬 Contact admin", callback_data="feedback")]]
+            inline_keyboard=[[InlineKeyboardButton(text="💬 Write to admin", callback_data="banned_write")]]
         )
         sent = await bot.send_message(chat_id, blocked_text, reply_markup=kb)
         await save_user_message(user_id, chat_id, sent.message_id)
@@ -1007,6 +1011,15 @@ async def _draw_main_menu(bot: Bot, user_id: int, chat_id: int, *, text: str | N
     if reply_markup is None:
         reply_markup = main_menu_keyboard(lang, user_id)
     sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
+    await save_user_message(user_id, chat_id, sent.message_id)
+
+
+async def _draw_banned_write_prompt(bot: Bot, user_id: int, chat_id: int):
+    lang = await get_user_language(user_id)
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=BACK_TEXTS.get(lang, BACK_TEXTS["en"]), callback_data="back_to_menu")]]
+    )
+    sent = await bot.send_message(chat_id, BANNED_WRITE_PROMPT, reply_markup=kb)
     await save_user_message(user_id, chat_id, sent.message_id)
 
 
@@ -1202,6 +1215,8 @@ async def set_state(
         await _draw_admin_menu(bot, user_id, cid)
     elif new_state == USER_STATE_FEEDBACK:
         await _draw_feedback_prompt(bot, user_id, cid)
+    elif new_state == USER_STATE_BANNED_MESSAGE:
+        await _draw_banned_write_prompt(bot, user_id, cid)
     else:
         await _draw_main_menu(bot, user_id, cid)
 
@@ -1216,7 +1231,7 @@ async def cmd_start(message: Message):
             lang = await get_user_language(user_id)
             text = BLOCKED_TEXTS.get(lang, BLOCKED_TEXTS["en"])
             kb = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="💬 Contact admin", callback_data="feedback")]]
+                inline_keyboard=[[InlineKeyboardButton(text="💬 Write to admin", callback_data="banned_write")]]
             )
             sent = await bot.send_message(chat_id, text, reply_markup=kb)
             await save_user_message(user_id, chat_id, sent.message_id)
@@ -1299,10 +1314,17 @@ async def on_rules_accept(callback: CallbackQuery):
 async def on_back_to_menu(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.answer()
-        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+        user_id = callback.from_user.id
+        chat_id = callback.message.chat.id
+        bot = callback.bot
+        if await get_user_banned(user_id):
+            await state.clear()
+            await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
+            return
+        if not await _check_not_banned(bot, user_id, chat_id):
             return
         await state.clear()
-        await set_state(callback.bot, callback.from_user.id, USER_STATE_MAIN_MENU, chat_id=callback.message.chat.id)
+        await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
     except Exception:
         log.exception("on_back_to_menu failed")
 
@@ -1429,34 +1451,25 @@ async def on_view_ads(callback: CallbackQuery):
         log.exception("on_view_ads failed")
 
 
+@router.callback_query(F.data == "banned_write")
+async def on_banned_write(callback: CallbackQuery):
+    try:
+        await callback.answer()
+        user_id = callback.from_user.id
+        if not await get_user_banned(user_id):
+            return
+        await set_state(callback.bot, user_id, USER_STATE_BANNED_MESSAGE, chat_id=callback.message.chat.id)
+    except Exception:
+        log.exception("on_banned_write failed")
+
+
 @router.callback_query(F.data == "feedback")
 async def on_feedback(callback: CallbackQuery):
     try:
         await callback.answer()
-        user_id = callback.from_user.id
-        chat_id = callback.message.chat.id
-        bot = callback.bot
-        if await get_user_banned(user_id):
-            lang = await get_user_language(user_id)
-            prompt = FEEDBACK_PROMPT_TEXTS.get(lang, FEEDBACK_PROMPT_TEXTS["en"])
-            kb = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=BACK_TEXTS.get(lang, BACK_TEXTS["en"]), callback_data="back_to_menu")]]
-            )
-            try:
-                await callback.message.edit_text(prompt, reply_markup=kb)
-            except Exception:
-                sent = await bot.send_message(chat_id, prompt, reply_markup=kb)
-                try:
-                    await callback.message.delete()
-                except Exception:
-                    pass
-                await save_user_message(user_id, chat_id, sent.message_id)
-                await set_user_state_db(user_id, USER_STATE_FEEDBACK)
-                return
-            await save_user_message(user_id, chat_id, callback.message.message_id)
-            await set_user_state_db(user_id, USER_STATE_FEEDBACK)
-        else:
-            await set_state(bot, user_id, USER_STATE_FEEDBACK, chat_id=chat_id)
+        if not await _check_not_banned(callback.bot, callback.from_user.id, callback.message.chat.id):
+            return
+        await set_state(callback.bot, callback.from_user.id, USER_STATE_FEEDBACK, chat_id=callback.message.chat.id)
     except Exception:
         log.exception("on_feedback failed")
 
@@ -2162,6 +2175,24 @@ async def on_text_message(message: Message):
         except Exception:
             pass
         state = await get_user_state(user_id)
+
+        if state == USER_STATE_BANNED_MESSAGE:
+            raw = (message.text or "").strip()
+            if not raw:
+                await bot.send_message(chat_id, BANNED_WRITE_PROMPT)
+                return
+            user_name = message.from_user.full_name or message.from_user.username or str(user_id)
+            admin_text = f"Message from banned user {user_name}:\n\n{raw}"
+            if ADMIN_USER_ID:
+                admin_chat_id = await get_user_chat_id(ADMIN_USER_ID)
+                if admin_chat_id:
+                    try:
+                        await bot.send_message(admin_chat_id, admin_text)
+                    except Exception as e:
+                        log.warning("Failed to send banned user message to admin: %s", e)
+            await bot.send_message(chat_id, BANNED_MESSAGE_SENT)
+            await set_state(bot, user_id, USER_STATE_MAIN_MENU, chat_id=chat_id)
+            return
 
         if state == USER_STATE_FEEDBACK:
             raw = (message.text or "").strip()
