@@ -582,14 +582,14 @@ async def get_last_ads(limit: int = 10, offset: int = 0, type_filter: str | None
             rows = await conn.fetch(
                 """SELECT id, user_id, language, content, author_name, type, created_at, expires_at, photo_id
                    FROM ads WHERE expires_at > CURRENT_TIMESTAMP AND type = $1
-                   ORDER BY created_at DESC LIMIT $2 OFFSET $3""",
+                   ORDER BY created_at ASC LIMIT $2 OFFSET $3""",
                 type_filter, limit, offset,
             )
         else:
             rows = await conn.fetch(
                 """SELECT id, user_id, language, content, author_name, type, created_at, expires_at, photo_id
                    FROM ads WHERE expires_at > CURRENT_TIMESTAMP
-                   ORDER BY created_at DESC LIMIT $1 OFFSET $2""",
+                   ORDER BY created_at ASC LIMIT $1 OFFSET $2""",
                 limit, offset,
             )
         return [_row_to_dict(row) or dict(row) for row in rows]
