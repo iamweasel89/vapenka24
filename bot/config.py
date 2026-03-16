@@ -28,4 +28,5 @@ LANGUAGES = {
     "ro": "Romanian",
     "en": "English",
     "hu": "Hungarian",
+    "ne": "Nepali",
 }

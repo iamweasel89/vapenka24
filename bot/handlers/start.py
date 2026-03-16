@@ -295,6 +295,7 @@ LANG_BUTTON_TEXTS = {
     "ro": "🇷🇴 Romanian",
     "en": "🇬🇧 English",
     "hu": "🇭🇺 Hungarian",
+    "ne": "🇳🇵 Nepali",
 }
 
 
