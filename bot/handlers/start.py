@@ -24,6 +24,7 @@ MAIN_MENU_TEXTS = {
     "ro": "Meniu principal",
     "en": "Main menu",
     "hu": "Főmenü",
+    "ne": "मुख्य मेनु",
 }
 
 POST_AD_TEXTS = {
@@ -34,6 +35,7 @@ POST_AD_TEXTS = {
     "ro": "Publică anunț",
     "en": "Post ad",
     "hu": "Hirdetés feladása",
+    "ne": "विज्ञापन पोस्ट गर्नुहोस्",
 }
 
 VIEW_ADS_TEXTS = {
@@ -44,6 +46,7 @@ VIEW_ADS_TEXTS = {
     "ro": "Vezi anunțurile",
     "en": "View ads",
     "hu": "Hirdetések megtekintése",
+    "ne": "विज्ञापनहरू हेर्नुहोस्",
 }
 
 MY_CHATS_TEXTS = {
@@ -54,6 +57,7 @@ MY_CHATS_TEXTS = {
     "ro": "Conversațiile mele",
     "en": "My chats",
     "hu": "Chatjeim",
+    "ne": "मेरा च्याटहरू",
 }
 
 NO_CHATS_TEXTS = {
@@ -64,6 +68,7 @@ NO_CHATS_TEXTS = {
     "ro": "Nicio conversație activă încă.",
     "en": "No active chats yet.",
     "hu": "Még nincs aktív csevegés.",
+    "ne": "अहिले सक्रिय च्याटहरू छैनन्।",
 }
 
 BACK_TO_CHATS_TEXTS = {
@@ -74,20 +79,21 @@ BACK_TO_CHATS_TEXTS = {
     "ro": "🔙 Înapoi la chat",
     "en": "🔙 Back to chats",
     "hu": "🔙 Vissza a chathez",
+    "ne": "🔙 च्याटहरूमा फर्कनुहोस्",
 }
 
 # Ad type labels for confirmation and view ads — all LANGUAGES keys (sk, uz, tl, uk, ro, en, hu)
-TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "ro": "Vând", "en": "Selling", "hu": "Eladó"}
-TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "ro": "Caut", "en": "Looking for", "hu": "Keresek"}
-TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "ro": "Dau gratuit", "en": "Giving away", "hu": "Ingyen adok"}
-TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "ro": "Altele", "en": "Other", "hu": "Egyéb"}
+TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "ro": "Vând", "en": "Selling", "hu": "Eladó", "ne": "बिक्री"}
+TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "ro": "Caut", "en": "Looking for", "hu": "Keresek", "ne": "खोज्दै"}
+TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "ro": "Dau gratuit", "en": "Giving away", "hu": "Ingyen adok", "ne": "निःशुल्क दिनुहोस्"}
+TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "ro": "Altele", "en": "Other", "hu": "Egyéb", "ne": "अरू"}
 TYPE_LABELS = {"SELL": TYPE_LABEL_SELL, "SEEK": TYPE_LABEL_SEEK, "GIVE": TYPE_LABEL_GIVE, "OTHER": TYPE_LABEL_OTHER}
 
-CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "ro": "✅ Corect", "en": "✅ Correct", "hu": "✅ Helyes"}
-CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "ro": "✏️ Schimbă tipul", "en": "✏️ Change type", "hu": "✏️ Típus módosítása"}
+CONFIRM_TYPE_CORRECT = {"sk": "✅ Správne", "uz": "✅ To'g'ri", "tl": "✅ Correct", "uk": "✅ Правильно", "ro": "✅ Corect", "en": "✅ Correct", "hu": "✅ Helyes", "ne": "✅ सही"}
+CONFIRM_TYPE_CHANGE = {"sk": "✏️ Zmeniť typ", "uz": "✏️ Turini o'zgartirish", "tl": "✏️ Change type", "uk": "✏️ Змінити тип", "ro": "✏️ Schimbă tipul", "en": "✏️ Change type", "hu": "✏️ Típus módosítása", "ne": "✏️ प्रकार परिवर्तन गर्नुहोस्"}
 
-FILTER_BTN_TEXTS = {"sk": "🔽 Filter", "uz": "🔽 Filtr", "tl": "🔽 Filter", "uk": "🔽 Фільтр", "ro": "🔽 Filtru", "en": "🔽 Filter", "hu": "🔽 Szűrő"}
-FILTER_ALL_TEXTS = {"sk": "Všetko", "uz": "Hammasi", "tl": "All", "uk": "Все", "ro": "Toate", "en": "All", "hu": "Összes"}
+FILTER_BTN_TEXTS = {"sk": "🔽 Filter", "uz": "🔽 Filtr", "tl": "🔽 Filter", "uk": "🔽 Фільтр", "ro": "🔽 Filtru", "en": "🔽 Filter", "hu": "🔽 Szűrő", "ne": "🔽 फिल्टर"}
+FILTER_ALL_TEXTS = {"sk": "Všetko", "uz": "Hammasi", "tl": "All", "uk": "Все", "ro": "Toate", "en": "All", "hu": "Összes", "ne": "सबै"}
 
 ENTER_AD_TEXT = {
     "sk": "Zadajte text inzerátu:",
@@ -97,6 +103,7 @@ ENTER_AD_TEXT = {
     "ro": "Introdu textul anunțului:",
     "en": "Enter ad text:",
     "hu": "Add meg a hirdetés szövegét:",
+    "ne": "विज्ञापन पाठ प्रविष्ट गर्नुहोस्:",
 }
 
 AD_POSTED = {
@@ -107,6 +114,7 @@ AD_POSTED = {
     "ro": "Anunț publicat!",
     "en": "Ad posted!",
     "hu": "Hirdetés közzétéve!",
+    "ne": "विज्ञापन पोस्ट गरियो!",
 }
 
 NO_ADS = {
@@ -117,6 +125,7 @@ NO_ADS = {
     "ro": "Nicio anunț încă.",
     "en": "No ads yet.",
     "hu": "Még nincsenek hirdetések.",
+    "ne": "अहिले विज्ञापनहरू छैनन्।",
 }
 
 BACK_TEXTS = {
@@ -127,6 +136,7 @@ BACK_TEXTS = {
     "ro": "← Înapoi",
     "en": "← Back",
     "hu": "← Vissza",
+    "ne": "← पछाडि",
 }
 
 CANCEL_TEXTS = {
@@ -137,6 +147,7 @@ CANCEL_TEXTS = {
     "ro": "Anulare",
     "en": "Cancel",
     "hu": "Mégse",
+    "ne": "रद्द गर्नुहोस्",
 }
 
 ADD_PHOTO_PROMPT = {
@@ -147,10 +158,11 @@ ADD_PHOTO_PROMPT = {
     "ro": "Adaugi o poză? (opțional)",
     "en": "Add a photo? (optional)",
     "hu": "Fénykép hozzáadása? (opcionális)",
+    "ne": "फोटो थप्ने? (वैकल्पिक)",
 }
-ADD_PHOTO_BTN = {"sk": "📷 Pridať fotku", "uz": "📷 Foto qo'shish", "tl": "📷 Magdagdag ng larawan", "uk": "📷 Додати фото", "ro": "📷 Adaugă poză", "en": "📷 Add photo", "hu": "📷 Fénykép hozzáadása"}
-SKIP_PHOTO_BTN = {"sk": "⏭️ Preskočiť", "uz": "⏭️ O'tkazish", "tl": "⏭️ Laktawan", "uk": "⏭️ Пропустити", "ro": "⏭️ Omite", "en": "⏭️ Skip", "hu": "⏭️ Kihagyás"}
-SEND_PHOTO_NOW = {"sk": "Pošlite fotku.", "uz": "Fotoni yuboring.", "tl": "Magpadala ng larawan.", "uk": "Надішліть фото.", "ro": "Trimite fotografia.", "en": "Send your photo now.", "hu": "Küldd el a fényképet."}
+ADD_PHOTO_BTN = {"sk": "📷 Pridať fotku", "uz": "📷 Foto qo'shish", "tl": "📷 Magdagdag ng larawan", "uk": "📷 Додати фото", "ro": "📷 Adaugă poză", "en": "📷 Add photo", "hu": "📷 Fénykép hozzáadása", "ne": "📷 फोटो थप्नुहोस्"}
+SKIP_PHOTO_BTN = {"sk": "⏭️ Preskočiť", "uz": "⏭️ O'tkazish", "tl": "⏭️ Laktawan", "uk": "⏭️ Пропустити", "ro": "⏭️ Omite", "en": "⏭️ Skip", "hu": "⏭️ Kihagyás", "ne": "⏭️ छोड्नुहोस्"}
+SEND_PHOTO_NOW = {"sk": "Pošlite fotku.", "uz": "Fotoni yuboring.", "tl": "Magpadala ng larawan.", "uk": "Надішліть фото.", "ro": "Trimite fotografia.", "en": "Send your photo now.", "hu": "Küldd el a fényképet.", "ne": "अहिले आफ्नो फोटो पठाउनुहोस्।"}
 
 WRITE_TO_AUTHOR_TEXTS = {
     "sk": "✉️ Napísať autorovi",
@@ -160,9 +172,10 @@ WRITE_TO_AUTHOR_TEXTS = {
     "ro": "✉️ Scrie autorului",
     "en": "✉️ Write to author",
     "hu": "✉️ Írás a szerzőnek",
+    "ne": "✉️ लेखकलाई लेख्नुहोस्",
 }
 
-BACK_EMOJI_TEXTS = {"sk": "🔙 Späť", "uz": "🔙 Orqaga", "tl": "🔙 Bumalik", "uk": "🔙 Назад", "ro": "🔙 Înapoi", "en": "🔙 Back", "hu": "🔙 Vissza"}
+BACK_EMOJI_TEXTS = {"sk": "🔙 Späť", "uz": "🔙 Orqaga", "tl": "🔙 Bumalik", "uk": "🔙 Назад", "ro": "🔙 Înapoi", "en": "🔙 Back", "hu": "🔙 Vissza", "ne": "🔙 पछाडि"}
 
 RELAY_INTERESTED_TEXTS = {
     "sk": "Niekto má záujem o váš inzerát:",
@@ -172,6 +185,7 @@ RELAY_INTERESTED_TEXTS = {
     "ro": "Cineva e interesat de anunțul tău:",
     "en": "Someone is interested in your ad:",
     "hu": "Valaki érdeklődik a hirdetésed iránt:",
+    "ne": "कसैलाई तपाईंको विज्ञापनमा रुचि छ:",
 }
 
 def _row_to_dict(row) -> dict | None:
@@ -181,7 +195,7 @@ def _row_to_dict(row) -> dict | None:
         return {k: row[k] for k in row.keys()}
     except Exception:
         return dict(row) if row else None
-RELAY_REPLY_BTN_TEXTS = {"sk": "✉️ Odpovedať", "uz": "✉️ Javob berish", "tl": "✉️ Sumagot", "uk": "✉️ Відповісти", "ro": "✉️ Răspunde", "en": "✉️ Reply", "hu": "✉️ Válasz"}
+RELAY_REPLY_BTN_TEXTS = {"sk": "✉️ Odpovedať", "uz": "✉️ Javob berish", "tl": "✉️ Sumagot", "uk": "✉️ Відповісти", "ro": "✉️ Răspunde", "en": "✉️ Reply", "hu": "✉️ Válasz", "ne": "✉️ जवाफ दिनुहोस्"}
 RELAY_CHAT_HEADER_TEXTS = {
     "sk": "Chat k inzerátu. Napíšte správu:",
     "uz": "E'lon bo'yicha chat. Xabar yozing:",
@@ -190,12 +204,13 @@ RELAY_CHAT_HEADER_TEXTS = {
     "ro": "Chat despre anunț. Scrie mesajul:",
     "en": "Chat about your ad. Type your message:",
     "hu": "Chat a hirdetésedről. Írd be az üzenetet:",
+    "ne": "तपाईंको विज्ञापनको बारेमा च्याट। सन्देश टाइप गर्नुहोस्:",
 }
-RELAY_STOP_TEXTS = {"sk": "🔙 Ukončiť chat", "uz": "🔙 Chatni tugatish", "tl": "🔙 I-stop ang chat", "uk": "🔙 Зупинити чат", "ro": "🔙 Încheie chat", "en": "🔙 End chat", "hu": "🔙 Chat befejezése"}
+RELAY_STOP_TEXTS = {"sk": "🔙 Ukončiť chat", "uz": "🔙 Chatni tugatish", "tl": "🔙 I-stop ang chat", "uk": "🔙 Зупинити чат", "ro": "🔙 Încheie chat", "en": "🔙 End chat", "hu": "🔙 Chat befejezése", "ne": "🔙 च्याट समाप्त गर्नुहोस्"}
 
-RELAY_HEADER_CHAT_WITH = {"sk": "💬 Chat s", "uz": "💬 Chat", "tl": "💬 Chat sa", "uk": "💬 Чат з", "ro": "💬 Chat cu", "en": "💬 Chat with", "hu": "💬 Chat"}
-RELAY_HEADER_ABOUT = {"sk": "O inzeráte:", "uz": "E'lon:", "tl": "Tungkol sa:", "uk": "Про оголошення:", "ro": "Despre anunț:", "en": "About:", "hu": "A hirdetésről:"}
-RELAY_HEADER_TYPE_BELOW = {"sk": "Napíšte správu nižšie:", "uz": "Xabar yozing:", "tl": "Mag-type ng mensahe sa ibaba:", "uk": "Напишіть повідомлення нижче:", "ro": "Scrie mesajul mai jos:", "en": "Type your message below:", "hu": "Írd be az üzenetet alább:"}
+RELAY_HEADER_CHAT_WITH = {"sk": "💬 Chat s", "uz": "💬 Chat", "tl": "💬 Chat sa", "uk": "💬 Чат з", "ro": "💬 Chat cu", "en": "💬 Chat with", "hu": "💬 Chat", "ne": "💬 च्याट"}
+RELAY_HEADER_ABOUT = {"sk": "O inzeráte:", "uz": "E'lon:", "tl": "Tungkol sa:", "uk": "Про оголошення:", "ro": "Despre anunț:", "en": "About:", "hu": "A hirdetésről:", "ne": "विज्ञापनको बारेमा:"}
+RELAY_HEADER_TYPE_BELOW = {"sk": "Napíšte správu nižšie:", "uz": "Xabar yozing:", "tl": "Mag-type ng mensahe sa ibaba:", "uk": "Напишіть повідомлення нижче:", "ro": "Scrie mesajul mai jos:", "en": "Type your message below:", "hu": "Írd be az üzenetet alább:", "ne": "तल आफ्नो सन्देश टाइप गर्नुहोस्:"}
 
 CONNECTING_TEXTS = {
     "sk": "Pripájam vás s autorom...",
@@ -205,6 +220,7 @@ CONNECTING_TEXTS = {
     "ro": "Te conectez cu autorul...",
     "en": "Connecting you with the author...",
     "hu": "Kapcsolás a szerzővel...",
+    "ne": "तपाईंलाई लेखकसँग जोड्दैछु...",
 }
 
 NEW_MESSAGE_FROM_TEXTS = {
@@ -215,6 +231,7 @@ NEW_MESSAGE_FROM_TEXTS = {
     "ro": "💬 Mesaj nou de la",
     "en": "💬 New message from",
     "hu": "💬 Új üzenet",
+    "ne": "💬 नयाँ सन्देश",
 }
 OPEN_CHAT_BTN_TEXTS = {
     "sk": "Otvorit chat",
@@ -224,6 +241,7 @@ OPEN_CHAT_BTN_TEXTS = {
     "ro": "Deschide chat",
     "en": "Open chat",
     "hu": "Chat megnyitása",
+    "ne": "च्याट खोल्नुहोस्",
 }
 
 FEEDBACK_BTN_TEXTS = {
@@ -234,6 +252,7 @@ FEEDBACK_BTN_TEXTS = {
     "ro": "💬 Feedback",
     "en": "💬 Feedback",
     "hu": "💬 Visszajelzés",
+    "ne": "💬 प्रतिक्रिया",
 }
 FEEDBACK_PROMPT_TEXTS = {
     "sk": "Napíšte svoju spätnú väzbu (vo svojom jazyku):",
@@ -243,6 +262,7 @@ FEEDBACK_PROMPT_TEXTS = {
     "ro": "Scrie feedback-ul tău (în limba ta):",
     "en": "Write your feedback (in your language):",
     "hu": "Írja meg visszajelzését (a saját nyelvén):",
+    "ne": "आफ्नो प्रतिक्रिया लेख्नुहोस् (आफ्नो भाषामा):",
 }
 
 RULES_TEXTS = {
@@ -253,6 +273,7 @@ RULES_TEXTS = {
     "ro": "Câteva reguli: postați doar anunțuri despre obiecte și servicii. Fără insulte sau agresivitate. Fără spam sau reclame externe. Încălcările duc la ban.",
     "en": "A few rules: post only ads about items and services. No insults or aggression. No spam or outside advertising. Violations result in a ban.",
     "hu": "Néhány szabály: csak tárgyakról és szolgáltatásokról szóló hirdetéseket tegyél közzé. Nincs sértés vagy agresszió. Nincs spam vagy külső reklám. A szabálysértések bant eredményeznek.",
+    "ne": "केही नियमहरू: वस्तु र सेवाहरूको बारेमा मात्र विज्ञापन पोस्ट गर्नुहोस्। गाली वा हिंसा निषेध। स्प्याम वा बाह्य विज्ञापन निषेध। उल्लङ्घनले प्रतिबन्ध लगाउँछ।",
 }
 I_UNDERSTAND_TEXTS = {
     "sk": "✅ Rozumiem",
@@ -262,6 +283,7 @@ I_UNDERSTAND_TEXTS = {
     "ro": "✅ Înțeleg",
     "en": "✅ I understand",
     "hu": "✅ Értem",
+    "ne": "✅ म बुझें",
 }
 BANNED_WRITE_PROMPT = "Write your message:"
 BANNED_MESSAGE_SENT = "Message sent"
@@ -274,6 +296,7 @@ BLOCKED_TEXTS = {
     "ro": "Contul dvs. a fost blocat. Contactați administratorul.",
     "en": "Your account has been blocked. Contact the administrator.",
     "hu": "A fiókodat blokkolták. Lépj kapcsolatba az adminisztrátorral.",
+    "ne": "तपाईंको खाता रोकिएको छ। प्रशासकसँग सम्पर्क गर्नुहोस्।",
 }
 
 CHOOSE_LANG_TEXT = "Choose language / Vyberte jazyk / Tilni tanlang / Pumili ng wika / Оберіть мову / Alegeți limba / Válasszon nyelvet:"
