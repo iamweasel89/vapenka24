@@ -323,10 +323,22 @@ def _days_left(expires_at: str | datetime | None) -> str:
 
 
 def lang_keyboard() -> InlineKeyboardMarkup:
+    # Build from explicit (code, label) list so each language has the correct button label (ne → Nepali, en → English).
+    lang_buttons = [
+        ("sk", "🇸🇰 Slovak"),
+        ("uz", "🇺🇿 Uzbek"),
+        ("tl", "🇵🇭 Tagalog"),
+        ("uk", "🇺🇦 Ukrainian"),
+        ("ro", "🇷🇴 Romanian"),
+        ("en", "🇬🇧 English"),
+        ("hu", "🇭🇺 Hungarian"),
+        ("ne", "🇳🇵 Nepali"),
+    ]
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=LANG_BUTTON_TEXTS.get(code, name), callback_data=f"lang_{code}")]
-            for code, name in LANGUAGES.items()
+            [InlineKeyboardButton(text=label, callback_data=f"lang_{code}")]
+            for code, label in lang_buttons
+            if code in LANGUAGES
         ]
     )
 
