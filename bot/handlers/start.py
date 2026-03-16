@@ -1272,17 +1272,19 @@ async def cmd_start(message: Message):
 @router.callback_query(F.data.startswith("lang_"))
 async def on_language(callback: CallbackQuery):
     try:
+        print(f"Language callback data: {callback.data!r}")
         await callback.answer()
         user_id = callback.from_user.id
         chat_id = callback.message.chat.id
         bot = callback.bot
         if not await _check_not_banned(bot, user_id, chat_id):
             return
-        lang = callback.data.replace("lang_", "")
+        lang = (callback.data or "").replace("lang_", "", 1).strip()
         if lang not in LANGUAGES:
+            log.warning("Language code %r not in LANGUAGES, falling back to en", lang)
             lang = "en"
         await set_user_language(user_id, lang)
-        log.info("User %s chose language %s", user_id, lang)
+        log.info("User %s chose language: %s", user_id, lang)
         # Always show community rules after language selection (every /start)
         rules_text = RULES_TEXTS.get(lang, RULES_TEXTS["en"])
         kb = InlineKeyboardMarkup(
