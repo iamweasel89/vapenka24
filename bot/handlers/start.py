@@ -83,9 +83,9 @@ BACK_TO_CHATS_TEXTS = {
 }
 
 # Ad type labels for confirmation and view ads — all LANGUAGES keys (sk, uz, tl, uk, ro, en, hu)
-TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Selling", "uk": "Продаю", "ro": "Vând", "en": "Selling", "hu": "Eladó", "ne": "बिक्री"}
-TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Looking for", "uk": "Шукаю", "ro": "Caut", "en": "Looking for", "hu": "Keresek", "ne": "खोज्दै"}
-TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Giving away", "uk": "Віддаю", "ro": "Dau gratuit", "en": "Giving away", "hu": "Ingyen adok", "ne": "निःशुल्क दिनुहोस्"}
+TYPE_LABEL_SELL = {"sk": "Predám", "uz": "Sotaman", "tl": "Nagbebenta", "uk": "Продаю", "ro": "Vând", "en": "Selling", "hu": "Eladó", "ne": "बिक्री"}
+TYPE_LABEL_SEEK = {"sk": "Hľadám", "uz": "Qidiyman", "tl": "Naghahanap", "uk": "Шукаю", "ro": "Caut", "en": "Looking for", "hu": "Keresek", "ne": "खोज्दै"}
+TYPE_LABEL_GIVE = {"sk": "Dávam", "uz": "Bepul beraman", "tl": "Nagbibigay", "uk": "Віддаю", "ro": "Dau gratuit", "en": "Giving away", "hu": "Ingyen adok", "ne": "निःशुल्क दिनुहोस्"}
 TYPE_LABEL_OTHER = {"sk": "Iné", "uz": "Boshqa", "tl": "Other", "uk": "Інше", "ro": "Altele", "en": "Other", "hu": "Egyéb", "ne": "अरू"}
 TYPE_LABELS = {"SELL": TYPE_LABEL_SELL, "SEEK": TYPE_LABEL_SEEK, "GIVE": TYPE_LABEL_GIVE, "OTHER": TYPE_LABEL_OTHER}
 
